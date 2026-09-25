@@ -81,7 +81,7 @@ def cadastrar_usuario(usuario, senha, nome, cpf, dt_nasc, telefone):
         c.execute('''
             INSERT INTO usuarios (usuario, senha, nome, cpf, data_nascimento, telefone, autorizado)
             VALUES (?, ?, ?, ?, ?, ?, 'PENDENTE')
-        ''', (usuario.strip().lower(), senha, nome, cpf, dt_nasc, telefone))
+        ''', (usuario.strip().lower(), senha, nome, cpf, dt_nasc, telephone))
         conn.commit()
         sucesso = True
     except Exception:
