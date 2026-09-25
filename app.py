@@ -35,11 +35,10 @@ def criar_banco():
         )
     ''')
     
-    # CORREÇÃO DO ERRO: Verifica se a coluna 'arquivo_caminho' já existe na tabela 'pedidos'
+    # CORRIGIDO: Sintaxe correta 'not in' para verificar e adicionar a coluna de arquivos
     c.execute("PRAGMA table_info(pedidos)")
     colunas = [col[1] for col in c.fetchall()]
-    if "arquivo_caminho" not def colunas:
-        # Se não existir (banco antigo), adiciona ela de forma segura sem apagar os dados existentes
+    if "arquivo_caminho" not in colunas:
         c.execute("ALTER TABLE pedidos ADD COLUMN arquivo_caminho TEXT DEFAULT ''")
         
     conn.commit()
@@ -217,7 +216,7 @@ with criar_ped:
     if doc_busca:
         cliente_encontrado = buscar_cliente(doc_busca)
         if cliente_encontrado:
-            st.info(f"Cliente identificado: {cliente_encontrado[0]}")
+            st.info(f"Cliente identificado: {cliente_encontrado}")
             if st.button("Confirmar e Criar Pedido", type="primary"):
                 criar_novo_pedido(doc_busca)
                 st.success("Pedido enviado para 'Pedido Criado'!")
@@ -282,3 +281,4 @@ for idx_etapa, etapa in enumerate(etapas):
                 
                 arquivo_carregado = st.file_uploader("Adicionar / Substituir Arquivos:", key=f"file_{row['id']}")
                 
+                nova_fase = st.selectbox("Mover para etapa:", etapas, index=etapas.index(row['etapa']), key=f"fase_{row['id']}")
