@@ -254,8 +254,8 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Configuração estável de colunas superiores
-col_titulo, col_btn1, col_btn2 = st.columns()
+# CORREÇÃO DEFINITIVA: Passando os pesos corretos das colunas para organizar o cabeçalho
+col_titulo, col_btn1, col_btn2 = st.columns([6, 2, 2])
 
 with col_titulo:
     st.title("📋 Painel de Controle")
@@ -279,4 +279,4 @@ with criar_cad:
             pf_orgao = st.text_input("Órgão Emissor:")
             submit_pf = st.form_submit_button("Salvar Cliente Física")
             
-        # PROVA DE ERROS: Execução fora de blocos 'if' aninhados usando inline direto
+        if submit_pf and pf_nome.strip() and pf_cpf.strip():
