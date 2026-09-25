@@ -19,13 +19,13 @@ def criar_banco():
             data_fundacao TEXT
         )
     ''')
+    # CORREÇÃO DEFINITIVA: Removida a trava de FOREIGN KEY para aceitar qualquer pedido direto
     c.execute('''
         CREATE TABLE IF NOT EXISTS pedidos (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             documento_cliente TEXT NOT NULL,
             etapa TEXT NOT NULL,
-            observacoes TEXT DEFAULT '',
-            FOREIGN KEY(documento_cliente) REFERENCES clientes(documento)
+            observacoes TEXT DEFAULT ''
         )
     ''')
     conn.commit()
@@ -52,7 +52,6 @@ def salvar_cliente(doc, tipo, nome, rg=None, dt_nasc=None, orgao=None, dt_fund=N
 def criar_novo_pedido(doc):
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
-    # Grava o pedido rigidamente na primeira etapa
     c.execute("INSERT INTO pedidos (documento_cliente, etapa) VALUES (?, 'Pedido Criado')", (doc.strip(),))
     conn.commit()
     conn.close()
@@ -66,10 +65,10 @@ def atualizar_pedido(id_ped, nova_etapa, novas_obs):
 
 def carregar_fluxo():
     conn = sqlite3.connect(DB_FILE)
-    # CORREÇÃO CRÍTICA: Mudança para LEFT JOIN para o pedido aparecer mesmo se houver erro no documento
+    # Busca todos os pedidos e traz o nome do cliente se ele existir no cadastro
     df = pd.read_sql_query('''
         SELECT p.id, p.documento_cliente, p.etapa, p.observacoes, 
-               IFNULL(c.nome, 'Cliente Não Cadastrado') as nome, 
+               IFNULL(c.nome, p.documento_cliente) as nome, 
                IFNULL(c.tipo, 'PF') as tipo
         FROM pedidos p
         LEFT JOIN clientes c ON p.documento_cliente = c.documento
@@ -79,7 +78,7 @@ def carregar_fluxo():
 
 criar_banco()
 
-# Inicialização do controle de janelas e cliques
+# Inicialização do controle de cliques
 if "pedido_selecionado" not in st.session_state:
     st.session_state.pedido_selecionado = None
 
@@ -107,7 +106,7 @@ st.markdown("""
     div[data-testid="column"] {
         padding-right: 10px !important;
         padding-left: 10px !important;
-        border-right: 1px solid #d1d5db !important; /* Divisa cinza original */
+        border-right: 1px solid #d1d5db !important;
     }
     
     div[data-testid="column"]:last-child {
@@ -168,7 +167,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Layout do Cabeçalho
-col_titulo, col_btn1, col_btn2 = st.columns()
+col_titulo, col_btn1, col_btn2 = st.columns([6, 2, 2])
 
 with col_titulo:
     st.title("📋 Painel de Controle")
@@ -266,3 +265,6 @@ colunas_quadro = st.columns(len(etapas))
 df_pedidos = carregar_fluxo()
 
 for idx_etapa, etapa in enumerate(etapas):
+    with colunas_quadro[idx_etapa]:
+        st.markdown(f"""
+            <div class='topo-coluna'>
