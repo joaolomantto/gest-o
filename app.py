@@ -34,7 +34,7 @@ def criar_banco():
 def buscar_cliente(doc):
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
-    c.execute("SELECT nome, tipo FROM clientes WHERE documento = ?", (doc,))
+    c.execute("SELECT nome, tipo FROM clientes WHERE documento = ?", (doc.strip(),))
     res = c.fetchone()
     conn.close()
     return res
@@ -45,15 +45,15 @@ def salvar_cliente(doc, tipo, nome, rg=None, dt_nasc=None, orgao=None, dt_fund=N
     c.execute('''
         INSERT OR REPLACE INTO clientes (documento, tipo, nome, rg, data_nascimento, orgao_emissor, data_fundacao)
         VALUES (?, ?, ?, ?, ?, ?, ?)
-    ''', (doc, tipo, nome, rg, dt_nasc, orgao, dt_fund))
+    ''', (doc.strip(), tipo, nome, rg, dt_nasc, orgao, dt_fund))
     conn.commit()
     conn.close()
 
 def criar_novo_pedido(doc):
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
-    # Força rigidamente o destino do novo card para 'Pedido Criado'
-    c.execute("INSERT INTO pedidos (documento_cliente, etapa) VALUES (?, 'Pedido Criado')", (doc,))
+    # Grava o pedido rigidamente na primeira etapa
+    c.execute("INSERT INTO pedidos (documento_cliente, etapa) VALUES (?, 'Pedido Criado')", (doc.strip(),))
     conn.commit()
     conn.close()
 
@@ -66,10 +66,13 @@ def atualizar_pedido(id_ped, nova_etapa, novas_obs):
 
 def carregar_fluxo():
     conn = sqlite3.connect(DB_FILE)
+    # CORREÇÃO CRÍTICA: Mudança para LEFT JOIN para o pedido aparecer mesmo se houver erro no documento
     df = pd.read_sql_query('''
-        SELECT p.id, p.documento_cliente, p.etapa, p.observacoes, c.nome, c.tipo
+        SELECT p.id, p.documento_cliente, p.etapa, p.observacoes, 
+               IFNULL(c.nome, 'Cliente Não Cadastrado') as nome, 
+               IFNULL(c.tipo, 'PF') as tipo
         FROM pedidos p
-        JOIN clientes c ON p.documento_cliente = c.documento
+        LEFT JOIN clientes c ON p.documento_cliente = c.documento
     ''', conn)
     conn.close()
     return df
@@ -136,7 +139,7 @@ st.markdown("""
     /* Efeito de Zoom com 0.8s nos botões-cards nativos */
     div.element-container button[data-testid="stBaseButton-secondary"] {
         background-color: #ffffff !important;
-        border: 1px solid #e2e8f0 !important;
+        border: 1px solid #babcbf !important;
         border-top: 4px solid #FFD700 !important;
         border-radius: 4px !important;
         padding: 12px !important;
@@ -165,7 +168,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Layout do Cabeçalho
-col_titulo, col_btn1, col_btn2 = st.columns([6, 2, 2])
+col_titulo, col_btn1, col_btn2 = st.columns()
 
 with col_titulo:
     st.title("📋 Painel de Controle")
@@ -190,7 +193,6 @@ with criar_cad:
             if st.form_submit_button("Salvar Cliente"):
                 if nome and cpf:
                     salvar_cliente(cpf, "PF", nome, rg, dt_nasc, orgao)
-                    # CORREÇÃO: Limpa a janela e força atualização imediata para a tela inicial
                     st.success("Cliente PF Cadastrado!")
                     st.rerun()
         else:
@@ -200,7 +202,6 @@ with criar_cad:
             if st.form_submit_button("Salvar Empresa"):
                 if nome_emp and cnpj:
                     salvar_cliente(cnpj, "PJ", nome_emp, dt_fund=dt_fund)
-                    # CORREÇÃO: Limpa a janela e força atualização imediata para a tela inicial
                     st.success("Cliente PJ Cadastrado!")
                     st.rerun()
 
@@ -212,13 +213,16 @@ with criar_ped:
         cliente_encontrado = buscar_cliente(doc_busca)
         if cliente_encontrado:
             st.info(f"Cliente identificado: {cliente_encontrado[0]}")
-            if st.button("Confirmar e Criar Pedido", type="primary"):
+            if st.button("Confirmar e Criar Pedido", type="primary", key="btn_criar_ped_com_cadastro"):
                 criar_novo_pedido(doc_busca)
-                # CORREÇÃO: Limpa a janela e força o retorno imediato para a tela inicial atualizada
                 st.success("Pedido enviado para 'Pedido Criado'!")
                 st.rerun()
         else:
-            st.error("Cliente não localizado. Realize o cadastro primeiro.")
+            st.warning("Cliente não localizado. Deseja criar o pedido mesmo assim?")
+            if st.button("Confirmar e Criar Pedido (Sem Cadastro)", type="primary", key="btn_criar_ped_sem_cadastro"):
+                criar_novo_pedido(doc_busca)
+                st.success("Pedido criado diretamente!")
+                st.rerun()
 
 # ---- JANELA DINÂMICA DE DETALHES ----
 if st.session_state.pedido_selecionado is not None:
@@ -262,9 +266,3 @@ colunas_quadro = st.columns(len(etapas))
 df_pedidos = carregar_fluxo()
 
 for idx_etapa, etapa in enumerate(etapas):
-    with colunas_quadro[idx_etapa]:
-        st.markdown(f"""
-            <div class='topo-coluna'>
-                <span class='texto-topo'>{etapa.upper()}</span>
-            </div>
-        """, unsafe_allow_html=True)
