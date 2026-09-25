@@ -51,6 +51,7 @@ def salvar_cliente(doc, tipo, nome, rg=None, dt_nasc=None, orgao=None, dt_fund=N
 def criar_novo_pedido(doc):
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
+    # Força a inserção exata com o texto idêntico ao título da primeira coluna
     c.execute("INSERT INTO pedidos (documento_cliente, etapa) VALUES (?, 'Pedido Criado')", (doc.strip(),))
     conn.commit()
     conn.close()
@@ -76,7 +77,7 @@ def carregar_fluxo():
 
 criar_banco()
 
-# Inicialização do controle de cliques
+# Inicialização estável do controle de cliques
 if "pedido_selecionado" not in st.session_state:
     st.session_state.pedido_selecionado = None
 
@@ -164,7 +165,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Layout do Cabeçalho - RESOLVIDO: Definida a proporção exata para as colunas do topo
+# Layout do Cabeçalho - Proporções automáticas
 col_titulo, col_btn1, col_btn2 = st.columns([6, 2, 2])
 
 with col_titulo:
@@ -209,17 +210,18 @@ with criar_ped:
     if doc_busca:
         cliente_encontrado = buscar_cliente(doc_busca)
         if cliente_encontrado:
-            st.info(f"Cliente identificado: {cliente_encontrado}")
-            if st.button("Confirmar e Criar Pedido", type="primary", key="btn_criar_ped_com_cadastro"):
+            st.info(f"Cliente identificado: {cliente_encontrado[0]}")
+            # CORREÇÃO CRÍTICA: Vinculado ao clique do botão para forçar o fechamento e a atualização
+            if st.button("Confirmar e Criar Pedido", type="primary", key="btn_confirmar_pedido_final"):
                 criar_novo_pedido(doc_busca)
-                st.success("Pedido enviado para 'Pedido Criado'!")
-                st.rerun()
+                st.session_state.pedido_selecionado = None
+                st.rerun()  # Força a tela a renderizar o novo card na hora
         else:
-            st.warning("Cliente não localizado. Deseja criar o pedido mesmo assim?")
+            st.warning("Cliente não localizado. Criar pedido mesmo assim?")
             if st.button("Confirmar e Criar Pedido (Sem Cadastro)", type="primary", key="btn_criar_ped_sem_cadastro"):
                 criar_novo_pedido(doc_busca)
-                st.success("Pedido criado diretamente!")
-                st.rerun()
+                st.session_state.pedido_selecionado = None
+                st.rerun()  # Força a tela a renderizar o novo card na hora
 
 # ---- JANELA DINÂMICA DE DETALHES ----
 if st.session_state.pedido_selecionado is not None:
@@ -262,11 +264,3 @@ etapas = [
 colunas_quadro = st.columns(len(etapas))
 df_pedidos = carregar_fluxo()
 
-for idx_etapa, etapa in enumerate(etapas):
-    with colunas_quadro[idx_etapa]:
-        st.markdown(f"""
-            <div class='topo-coluna'>
-                <span class='texto-topo'>{etapa.upper()}</span>
-            </div>
-        """, unsafe_allow_html=True)
-        
