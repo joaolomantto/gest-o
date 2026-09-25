@@ -31,10 +31,17 @@ def criar_banco():
             documento_cliente TEXT NOT NULL,
             etapa TEXT NOT NULL,
             observacoes TEXT DEFAULT '',
-            arquivo_caminho TEXT DEFAULT '',
             FOREIGN KEY(documento_cliente) REFERENCES clientes(documento)
         )
     ''')
+    
+    # CORREÇÃO DO ERRO: Verifica se a coluna 'arquivo_caminho' já existe na tabela 'pedidos'
+    c.execute("PRAGMA table_info(pedidos)")
+    colunas = [col[1] for col in c.fetchall()]
+    if "arquivo_caminho" not def colunas:
+        # Se não existir (banco antigo), adiciona ela de forma segura sem apagar os dados existentes
+        c.execute("ALTER TABLE pedidos ADD COLUMN arquivo_caminho TEXT DEFAULT ''")
+        
     conn.commit()
     conn.close()
 
@@ -168,7 +175,6 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Define as 3 colunas principais para alinhar os botões superiores
 col_titulo, col_btn1, col_btn2 = st.columns([6, 2, 2])
 
 with col_titulo:
@@ -211,7 +217,7 @@ with criar_ped:
     if doc_busca:
         cliente_encontrado = buscar_cliente(doc_busca)
         if cliente_encontrado:
-            st.info(f"Cliente identificado: {cliente_encontrado}")
+            st.info(f"Cliente identificado: {cliente_encontrado[0]}")
             if st.button("Confirmar e Criar Pedido", type="primary"):
                 criar_novo_pedido(doc_busca)
                 st.success("Pedido enviado para 'Pedido Criado'!")
@@ -249,7 +255,7 @@ for idx_etapa, etapa in enumerate(etapas):
                 </div>
             """, unsafe_allow_html=True)
             
-            # Botões rápidos para mover o card lateralmente sem abrir os detalhes
+            # Botões rápidos direcionais
             col_esq, col_dir = st.columns(2)
             with col_esq:
                 if idx_etapa > 0:
@@ -262,7 +268,7 @@ for idx_etapa, etapa in enumerate(etapas):
                         atualizar_etapa_rapida(row['id'], etapas[idx_etapa + 1])
                         st.rerun()
             
-            # Janela de Detalhes (Popover)
+            # Detalhes do pedido
             with st.popover("⚙️ Detalhes / Opções", use_container_width=True):
                 st.write(f"**Pedido:** P-{row['id']}")
                 st.write(f"**Cliente:** {row['nome']} ({row['documento_cliente']})")
@@ -276,7 +282,3 @@ for idx_etapa, etapa in enumerate(etapas):
                 
                 arquivo_carregado = st.file_uploader("Adicionar / Substituir Arquivos:", key=f"file_{row['id']}")
                 
-                nova_fase = st.selectbox("Mover para etapa:", etapas, index=etapas.index(row['etapa']), key=f"fase_{row['id']}")
-                novas_obs = st.text_area("Observações do pedido:", value=row['observacoes'], key=f"obs_{row['id']}")
-                
-                # Divisão de botões internos (Salvar e Excluir)
