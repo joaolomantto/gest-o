@@ -85,6 +85,7 @@ criar_banco()
 # 2. Interface Estilizada e Minimalista
 st.set_page_config(layout="wide", page_title="Gestão de Fluxo", page_icon="📋")
 
+# CSS Ajustado para garantir alinhamento perfeito dos blocos superiores
 st.markdown("""
     <style>
     div[data-testid="stExpander"] {
@@ -103,8 +104,8 @@ st.markdown("""
     }
     
     div[data-testid="column"] {
-        padding-right: 15px !important;
-        padding-left: 15px !important;
+        padding-right: 10px !important;
+        padding-left: 10px !important;
         border-right: 1px solid #e2e8f0 !important;
         min-height: 80vh !important;
     }
@@ -113,13 +114,18 @@ st.markdown("""
         border-right: none !important;
     }
     
+    /* MODIFICAÇÃO AQUI: Altura fixa e Flexbox para alinhar textos longos como "Faturar Entregar e Receber" */
     .topo-coluna {
         background-color: #f8fafc;
-        padding: 8px;
+        padding: 6px;
         border-radius: 4px;
         text-align: center;
         margin-bottom: 15px;
         border: 1px solid #edf2f7;
+        min-height: 48px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
     
     .caixa-pedido {
@@ -147,6 +153,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
+# Definição correta das colunas do cabeçalho de botões superiores
 col_titulo, col_btn1, col_btn2 = st.columns([6, 2, 2])
 
 with col_titulo:
@@ -242,11 +249,9 @@ for idx_etapa, etapa in enumerate(etapas):
                 with col_salvar:
                     if st.button("Salvar Mudanças", key=f"btn_salvar_{row['id']}", type="primary", use_container_width=True):
                         atualizar_pedido(row['id'], nova_fase, novas_obs)
-                        # ATUALIZAÇÃO: O st.rerun limpa o estado de abertura dos popovers e renderiza as novas abas direto
                         st.rerun()
                         
                 with col_excluir:
                     if st.button("🚫 Excluir Pedido", key=f"btn_excluir_{row['id']}", type="secondary", use_container_width=True):
                         excluir_pedido(row['id'])
-                        # ATUALIZAÇÃO: Exclui do banco e força o fechamento limpando a interface das colunas imediatamente
                         st.rerun()
