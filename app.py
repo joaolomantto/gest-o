@@ -83,42 +83,28 @@ ETAPAS_GLOBAL = [
 ]
 
 # Inicialização de variáveis de controle de janelas na memória do navegador
-if "pedido_id_aberto" not in st.session_state:
-    st.session_state.pedido_id_aberto = None
+if "pedido_selecionado" not in st.session_state:
+    st.session_state.pedido_selecionado = None
 if "aba_aberta" not in st.session_state:
     st.session_state.aba_aberta = None
-
-# Captura cliques em links HTML para abrir detalhes sem travar os botões do topo
-query_params = st.query_params
-if "abrir_pedido" in query_params:
-    try:
-        id_ped_click = int(query_params["abrir_pedido"])
-        df_busca = carregar_fluxo()
-        match = df_busca[df_busca["id"] == id_ped_click]
-        if not match.empty:
-            st.session_state.pedido_id_aberto = id_ped_click
-            st.session_state.aba_aberta = None
-    except:
-        pass
-    st.query_params.clear()
 
 # 2. Interface Estilizada e Configuração de Cores (Design Minimalista Branco/Preto)
 st.set_page_config(layout="wide", page_title="Gestão de Fluxo", page_icon="📋")
 
-# Aplicação de CSS Inteligente - Fundo Branco Real e Zoom com 0.8s de Delay
+# Aplicação de CSS Inteligente - Sem quebrar cliques e forçando o Tema Claro Rígido
 st.markdown("""
     <style>
-    /* Força o fundo de todas as camadas para BRANCO Puro */
-    html, body, .stApp, [data-testid="stAppViewContainer"], [data-testid="stHeader"], [data-testid="stMainBlockContainer"] {
+    /* Força o fundo de toda a página para BRANCO Puro */
+    .stApp, [data-testid="stAppViewContainer"], [data-testid="stHeader"], [data-testid="stMainBlockContainer"] {
         background-color: #ffffff !important;
     }
     
     /* Força todas as fontes, títulos e labels para PRETO */
-    h1, h2, h3, h4, h5, h6, p, span, label, li, div, .stMarkdown, p font {
+    h1, h2, h3, h4, h5, h6, p, span, label, li, div, .stMarkdown {
         color: #000000 !important;
     }
     
-    /* Configuração e linhas divisórias verticais cinzas entre as colunas */
+    /* Configuração e linhas divisórias verticais cinzas entre as abas */
     div[data-testid="stHorizontalBlock"] {
         align-items: stretch !important;
         background-color: #ffffff !important;
@@ -156,44 +142,34 @@ st.markdown("""
         line-height: 1.2;
     }
     
-    /* CAIXINHA QUADRADA DO PEDIDO EM HTML (EVITA CONFLITOS DE CLIQUE) */
-    .link-card-pedido {
-        text-decoration: none !important;
-        display: block !important;
-        margin-bottom: 12px;
-    }
-    
-    .caixa-pedido-html {
+    /* TRANSFORMANDO O BOTÃO DO PEDIDO NA CAIXINHA QUADRADA COM ZOOM DELAY DE 0,8s */
+    div.element-container button[data-testid="stBaseButton-secondary"] {
         background-color: #ffffff !important;
         border: 1px solid #babcbf !important; /* Contorno cinza do card */
         border-top: 4px solid #FFD700 !important; /* Detalhe amarelo superior */
         border-radius: 4px !important;
         padding: 12px !important;
         width: 100% !important;
+        height: auto !important;
         min-height: 85px !important;
         text-align: left !important;
         box-shadow: 0px 1px 3px rgba(0, 0, 0, 0.08) !important;
+        display: block !important;
         transition: transform 0.3s ease, box-shadow 0.3s ease !important;
-        transition-delay: 0.8s !important; /* Delay exato de 0,8 segundos para o Zoom */
+        transition-delay: 0.8s !important; /* Delay exato de 0,8 segundos */
     }
     
-    .caixa-pedido-html:hover {
+    /* Texto interno da caixinha em preto */
+    div.element-container button[data-testid="stBaseButton-secondary"] p {
+        color: #000000 !important;
+        font-weight: bold !important;
+        white-space: pre-wrap !important;
+    }
+    
+    div.element-container button[data-testid="stBaseButton-secondary"]:hover {
         transform: scale(1.06) !important; /* Efeito de pequeno zoom */
         box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.15) !important;
         background-color: #ffffff !important;
-    }
-    
-    .texto-card-id {
-        font-size: 13px;
-        font-weight: bold;
-        color: #000000 !important;
-        margin-bottom: 4px;
-    }
-    
-    .texto-card-nome {
-        font-size: 12px;
-        color: #333333 !important;
-        white-space: pre-wrap;
     }
     
     /* Estilo dos botões amarelos fixos superiores do topo direito */
@@ -209,7 +185,7 @@ st.markdown("""
         color: #000000 !important;
     }
     
-    /* Mantém as inputs normais visíveis em modo claro */
+    /* Ajustes para inputs em modo claro */
     input {
         color: #000000 !important;
         background-color: #ffffff !important;
@@ -217,7 +193,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Layout do Cabeçalho principal organizando título e botões superiores amarelos
+# Layout do Cabeçalho principal organizando título e botões
 col_titulo, col_btn1, col_btn2 = st.columns([6, 2, 2])
 
 with col_titulo:
@@ -226,13 +202,13 @@ with col_titulo:
 with col_btn1:
     if st.button("👤 CRIAR CADASTRO", type="primary", key="main_btn_cad"):
         st.session_state.aba_aberta = "cadastro"
-        st.session_state.pedido_id_aberto = None
+        st.session_state.pedido_selecionado = None
         st.rerun()
 
 with col_btn2:
     if st.button("📦 CRIAR PEDIDO", type="primary", key="main_btn_ped"):
         st.session_state.aba_aberta = "pedido"
-        st.session_state.pedido_id_aberto = None
+        st.session_state.pedido_selecionado = None
         st.rerun()
 
 # ---- JANELA DINÂMICA: CRIAR CADASTRO ----
@@ -275,3 +251,14 @@ if st.session_state.aba_aberta == "pedido":
             cliente_encontrado = buscar_cliente(doc_busca)
             if cliente_encontrado:
                 st.success(f"Cliente Identificado: {cliente_encontrado[0]}")
+                if st.button("Confirmar Pedido e Voltar", type="primary", key="btn_conf_ped"):
+                    criar_novo_pedido(doc_busca)
+                    st.session_state.aba_aberta = None  # Reseta para voltar à tela inicial
+                    st.rerun()
+            else:
+                st.error("Cliente não localizado. Realize o cadastro primeiro.")
+        if st.button("❌ Cancelar e Sair", key="btn_cancelar_ped"):
+            st.session_state.aba_aberta = None
+            st.rerun()
+
+# ---- JANELA DINÂMICA: DETALHES DO PEDIDO SELECIONADO (DENTRO DA CAIXA) ----
