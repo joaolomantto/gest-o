@@ -255,18 +255,17 @@ if not st.session_state["logado"]:
                     st.error("Usuário ou senha incorretos.")
                     
     with tab_cadastro:
-        with st.form("form_cadastro_sistema", clear_on_submit=False):
-            new_nome = st.text_input("Nome Completo:")
-            new_cpf = st.text_input("CPF (Apenas números):")
-            new_nasc = st.text_input("Data de Nascimento (DD/MM/AAAA):")
-            new_fone = st.text_input("Telefone de Contato:")
-            st.markdown("---")
-            new_user = st.text_input("Escolha um Nome de Usuário (Para o login):")
-            new_pass = st.text_input("Defina sua Senha de Acesso:", type="password")
-            
-            if st.form_submit_button("Cadastrar e Solicitar Permissão", use_container_width=True):
-                if new_nome and new_cpf and new_nasc and new_fone and new_user and new_pass:
-                    if new_user.strip().lower() == USER_MASTER:
-                        st.error("Este nome de usuário é reservado ao administrador.")
-                    else:
-                        cadastrou = cadastrar_usuario(new_user, new_pass, new_nome, new_cpf, new_nasc, new_fone)
+        # ATUALIZAÇÃO CRÍTICA: Campos soltos sem st.form para disparar o clique de forma nativa e imediata
+        new_nome = st.text_input("Nome Completo:", key="reg_nome")
+        new_cpf = st.text_input("CPF (Apenas números):", key="reg_cpf")
+        new_nasc = st.text_input("Data de Nascimento (DD/MM/AAAA):", key="reg_nasc")
+        new_fone = st.text_input("Telefone de Contato:", key="reg_fone")
+        st.markdown("---")
+        new_user = st.text_input("Escolha um Nome de Usuário (Para o login):", key="reg_user")
+        new_pass = st.text_input("Defina sua Senha de Acesso:", type="password", key="reg_pass")
+        
+        if st.button("🚀 Cadastrar e Solicitar Permissão", use_container_width=True, type="primary"):
+            if new_nome and new_cpf and new_nasc and new_fone and new_user and new_pass:
+                if new_user.strip().lower() == USER_MASTER:
+                    st.error("Este nome de usuário é reservado ao administrador.")
+                else:
