@@ -148,7 +148,7 @@ if "usuario" not in st.session_state:
 if "usuario_nome" not in st.session_state:
     st.session_state.usuario_nome = None
 
-# Sidebar Dinâmica para Autenticação (Reestruturada de forma linear estável)
+# Sidebar Dinâmica para Autenticação
 with st.sidebar:
     st.header("👤 Autenticação")
     if st.session_state.usuario is None:
@@ -163,7 +163,7 @@ with st.sidebar:
                 dados_user = verificar_login(user_login, senha_login)
                 if dados_user:
                     st.session_state.usuario = user_login.strip().lower()
-                    st.session_state.usuario_nome = dados_user[0] if isinstance(dados_user, tuple) else dados_user
+                    st.session_state.usuario_nome = dados_user if isinstance(dados_user, tuple) else dados_user
                     st.success(f"Bem-vindo, {st.session_state.usuario_nome}!")
                     st.rerun()
                 else:
@@ -254,8 +254,8 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Configuração estável de colunas superiores (3 colunas com pesos definidos)
-col_titulo, col_btn1, col_btn2 = st.columns([6, 2, 2])
+# Configuração estável de colunas superiores
+col_titulo, col_btn1, col_btn2 = st.columns()
 
 with col_titulo:
     st.title("📋 Painel de Controle")
@@ -280,3 +280,4 @@ with criar_cad:
             submit_pf = st.form_submit_button("Salvar Cliente Física")
             
         if submit_pf:
+            if pf_nome.strip() and pf_cpf.strip():
