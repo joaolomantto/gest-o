@@ -38,6 +38,23 @@ def criar_banco():
             ultima_atualizacao TEXT DEFAULT ''
         )
     ''')
+    
+    # ADICIONA AS COLUNAS SE O BANCO JÁ EXISTIR ANTIGO (Prevenção do erro da imagem)
+    try:
+        c.execute("ALTER TABLE pedidos ADD COLUMN arquivo_caminho TEXT DEFAULT ''")
+    except sqlite3.OperationalError:
+        pass
+
+    try:
+        c.execute("ALTER TABLE pedidos ADD COLUMN autor TEXT DEFAULT 'Não informado'")
+    except sqlite3.OperationalError:
+        pass
+
+    try:
+        c.execute("ALTER TABLE pedidos ADD COLUMN ultima_atualizacao TEXT DEFAULT ''")
+    except sqlite3.OperationalError:
+        pass
+        
     conn.commit()
     conn.close()
 
@@ -115,6 +132,7 @@ def exibir_pdf(caminho_pdf):
     except Exception as e:
         st.error(f"Erro ao carregar o arquivo PDF: {e}")
 
+# Garante a migração segura da estrutura de dados
 criar_banco()
 
 # 2. Interface Estilizada e Minimalista
@@ -179,7 +197,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-col_titulo, col_btn1, col_btn2 = st.columns([6, 2, 2])
+col_titulo, col_btn1, col_btn2 = st.columns()
 
 with col_titulo:
     st.title("📋 Painel de Controle")
@@ -245,7 +263,7 @@ etapas = [
 colunas_quadro = st.columns(len(etapas))
 df_pedidos = carregar_fluxo()
 
-# Inicializa o estado do pedido selecionado se não existir
+# Mantém estável o estado do ID clicado
 if "pedido_selecionado_id" not in st.session_state:
     st.session_state.pedido_selecionado_id = None
 
@@ -269,14 +287,3 @@ for idx_etapa, etapa in enumerate(etapas):
                     <div class='caixa-pedido'>
                         <div class='id-pedido'>PEDIDO #{int(row['id'])}</div>
                         <div class='nome-cliente'>{nome_exibicao}</div>
-                        <div style='font-size:10px; color:#a0aec0;'>Autor: {row['autor']}</div>
-                    </div>
-                """, unsafe_allow_html=True)
-                
-                # Guarda estável o ID do pedido clicado para abrir fora do loop
-                if st.button("🔍 Detalhes", key=f"detalhe_{int(row['id'])}", use_container_width=True):
-                    st.session_state.pedido_selecionado_id = int(row['id'])
-                    st.rerun()
-        else:
-            st.markdown("<p style='font-size:11px; color:#a0aec0; text-align:center;'>Nenhum pedido</p>", unsafe_allow_html=True)
-
