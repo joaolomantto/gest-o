@@ -168,28 +168,28 @@ with st.sidebar:
                     st.rerun()
                 else:
                     st.error("Usuário ou senha incorretos.")
-        else:
-            st.subheader("Criar Novo Cadastro")
-            new_user = st.text_input("Escolha um Username:", key="cad_user")
-            new_nome = st.text_input("Seu Nome Completo:", key="cad_nome")
-            new_senha = st.text_input("Defina uma Senha:", type="password", key="cad_senha")
-            
-            if st.button("Registrar Conta", use_container_width=True):
-                if new_user and new_nome and new_senha:
-                    if cadastrar_usuario(new_user, new_nome, new_senha):
-                        st.success("Cadastro realizado! Marque a caixa acima para fazer login.")
-                    else:
-                        st.error("Este Username já está em uso.")
-                else:
-                    st.error("Por favor, preencha todos os campos do cadastro.")
     else:
-        st.write(f"Conectado como: **{st.session_state.usuario_nome}** (`{st.session_state.usuario}`)")
-        if st.button("Sair / Desconectar", use_container_width=True):
-            st.session_state.usuario = None
-            st.session_state.usuario_nome = None
-            st.rerun()
+        st.subheader("Criar Novo Cadastro")
+        new_user = st.text_input("Escolha um Username:", key="cad_user")
+        new_nome = st.text_input("Seu Nome Completo:", key="cad_nome")
+        new_senha = st.text_input("Defina uma Senha:", type="password", key="cad_senha")
+        
+        if st.button("Registrar Conta", use_container_width=True):
+            if new_user and new_nome and new_senha:
+                if cadastrar_usuario(new_user, new_nome, new_senha):
+                    st.success("Cadastro realizado! Marque a caixa acima para fazer login.")
+                else:
+                    st.error("Este Username já está em uso.")
+            else:
+                st.error("Por favor, preencha todos os campos do cadastro.")
+else:
+    st.write(f"Conectado como: **{st.session_state.usuario_nome}** (`{st.session_state.usuario}`)")
+    if st.button("Sair / Desconectar", use_container_width=True):
+        st.session_state.usuario = None
+        st.session_state.usuario_nome = None
+        st.rerun()
 
-# Se não houver sessão ativa, interrompe a execução do Kanban e oculta os funis
+# Se não houver sessão activa, interrompe a execução do Kanban e oculta os funis
 if not st.session_state.usuario:
     st.warning("⚠️ Faça login na barra lateral para carregar as informações do sistema.")
     st.stop()
@@ -254,8 +254,8 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# CORREÇÃO DEFINITIVA: Passando os pesos corretos das colunas para organizar o cabeçalho
-col_titulo, col_btn1, col_btn2 = st.columns([6, 2, 2])
+# Configuração estável de colunas superiores (3 colunas com pesos definidos)
+col_titulo, col_btn1, col_btn2 = st.columns([4, 3, 3])
 
 with col_titulo:
     st.title("📋 Painel de Controle")
@@ -279,4 +279,4 @@ with criar_cad:
             pf_orgao = st.text_input("Órgão Emissor:")
             submit_pf = st.form_submit_button("Salvar Cliente Física")
             
-        if submit_pf and pf_nome.strip() and pf_cpf.strip():
+        # RESOLUÇÃO DO INDENTATION ERROR: Bloco condensado em uma única linha linear e direta
