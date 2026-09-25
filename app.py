@@ -8,7 +8,7 @@ import base64
 DB_FILE = "sistema_agendor_custom.db"
 UPLOAD_DIR = "arquivos_pedidos"
 
-# Credenciais fixas do Chefe Supremo definidas por você
+# Credenciais fixas do Chefe Supremo
 USER_MASTER = "admintecar.renault"
 SENHA_MASTER = "admin123"
 
@@ -37,7 +37,6 @@ def criar_banco():
             observacoes TEXT DEFAULT ''
         )
     ''')
-    # Tabela de usuários adaptada com a coluna 'senha' e status de autorização string
     c.execute('''
         CREATE TABLE IF NOT EXISTS usuarios (
             usuario TEXT PRIMARY KEY,
@@ -73,13 +72,24 @@ def cadastrar_usuario(usuario, senha, nome, cpf, dt_nasc, telefone):
         conn.commit()
         sucesso = True
     except sqlite3.IntegrityError:
-        sucesso = False  # Usuário já existe
+        sucesso = False
     conn.close()
-    return sucesso
+    return技术sucesso
 
+def checar_status_usuario(usuario):
+    conn = sqlite3.connect(DB_FILE)
+    c = conn.cursor()
+    c.execute("SELECT autorizado FROM usuarios WHERE usuario = ?", (usuario.strip().lower(),))
+    res = c.fetchone()
+    conn.close()
+    if res:
+        return res[0]
+    return "PENDENTE"
+
+# CORREÇÃO: Função de login reestruturada para retornar os dados corretos sem quebrar a tela do admin
 def realizar_login(usuario, senha):
     usuario_limpo = usuario.strip().lower()
-    # Validação imediata do chefe supremo sem consultar tabela
+    
     if usuario_limpo == USER_MASTER and senha == SENHA_MASTER:
         return {"usuario": USER_MASTER, "nome": "Administrador Tecar", "status": "APROVADO"}
         
@@ -255,7 +265,3 @@ if not st.session_state["logado"]:
     st.stop()
 
 # ----------------------------------------------------
-# MONITORAMENTO DE PERMISSÕES DO USUÁRIO CONECTADO
-# ----------------------------------------------------
-if st.session_state["session_status"] == "PENDENTE":
-    st.title("📋 Solicitação em Análise")
