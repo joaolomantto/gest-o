@@ -84,10 +84,21 @@ if "aba_aberta" not in st.session_state:
 # 2. Interface Estilizada Dinâmica
 st.set_page_config(layout="wide", page_title="Gestão de Fluxo", page_icon="📋")
 
-# Estilização CSS limpa (sem sobreposição de cliques)
+# Injeção de CSS para forçar Fundo Branco e Textos/Linhas Pretos ou Cinza Escuros
 st.markdown("""
     <style>
-    /* Configuração e linha divisória das colunas de cima até embaixo */
+    /* Força a cor do plano de fundo geral do aplicativo para BRANCO puro e texto para PRETO */
+    .stApp {
+        background-color: #ffffff !important;
+        color: #000000 !important;
+    }
+    
+    /* Garante que os títulos principais fiquem sempre pretos */
+    h1, h2, h3, h4, h5, h6, p, span, label {
+        color: #000000 !important;
+    }
+    
+    /* Configuração e linha divisória das colunas de cima até embaixo (Cinza Bem Definido) */
     div[data-testid="stHorizontalBlock"] {
         align-items: stretch !important;
     }
@@ -95,7 +106,7 @@ st.markdown("""
     div[data-testid="column"] {
         padding-right: 10px !important;
         padding-left: 10px !important;
-        border-right: 1px solid #d1d5db !important;
+        border-right: 1px solid #cccccc !important; /* Linha cinza nítida entre colunas */
     }
     
     div[data-testid="column"]:last-child {
@@ -105,7 +116,7 @@ st.markdown("""
     /* Alinhamento fixo das caixas de etapas superiores */
     .topo-coluna {
         background-color: #ffffff;
-        border: 1px solid #e2e8f0;
+        border: 1px solid #000000; /* Borda preta fina para destacar a etapa */
         padding: 8px 4px;
         border-radius: 4px;
         text-align: center;
@@ -120,34 +131,41 @@ st.markdown("""
     .texto-topo {
         font-size: 10px;
         font-weight: bold;
-        color: #1a202c;
+        color: #000000 !important; /* Texto da etapa em preto puro */
         line-height: 1.2;
     }
     
-    /* Transformando o botão do Streamlit na Caixinha Quadrada com Zoom Delay de 0.8s */
+    /* Transformando a Caixinha Quadrada do Pedido - Fundo Branco, Bordas Cinzas e Texto PRETO */
     div.element-container button[data-testid="stBaseButton-secondary"] {
         background-color: #ffffff !important;
-        border: 1px solid #e2e8f0 !important;
-        border-top: 4px solid #FFD700 !important;
+        border: 1px solid #babcbf !important; /* Borda da caixa cinza */
+        border-top: 4px solid #FFD700 !important; /* Friso superior amarelo */
         border-radius: 4px !important;
         padding: 12px !important;
         width: 100% !important;
         height: auto !important;
         min-height: 80px !important;
         text-align: left !important;
-        box-shadow: 0px 1px 3px rgba(0, 0, 0, 0.05) !important;
+        box-shadow: 0px 1px 3px rgba(0, 0, 0, 0.08) !important;
         display: block !important;
         transition: transform 0.3s ease, box-shadow 0.3s ease !important;
-        transition-delay: 0.8s !important; /* Delay exato de 0.8s solicitado */
+        transition-delay: 0.8s !important;
+    }
+    
+    /* Garante que o texto de dentro do botão do pedido seja PRETO PURO e visível */
+    div.element-container button[data-testid="stBaseButton-secondary"] div p {
+        color: #000000 !important;
+        font-weight: 500 !important;
+        white-space: pre-wrap !important;
     }
     
     div.element-container button[data-testid="stBaseButton-secondary"]:hover {
         transform: scale(1.06) !important;
-        box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.12) !important;
+        box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.15) !important;
         background-color: #ffffff !important;
     }
     
-    /* Customização dos botões amarelos superiores do topo */
+    /* Customização dos botões amarelos superiores do topo (permanecem amarelos, mas com letras pretas nítidas) */
     div.element-container button[data-testid="stBaseButton-primary"] {
         background-color: #FFD700 !important;
         color: #000000 !important;
@@ -158,6 +176,17 @@ st.markdown("""
     div.element-container button[data-testid="stBaseButton-primary"]:hover {
         background-color: #E6C200 !important;
         color: #000000 !important;
+    }
+    
+    /* Ajustes em inputs para manter os textos visíveis no fundo branco */
+    input {
+        color: #000000 !important;
+        background-color: #ffffff !important;
+    }
+    
+    /* Linha horizontal divisória (hr) em cor cinza sólida */
+    hr {
+        border-color: #babcbf !important;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -195,7 +224,7 @@ if st.session_state.aba_aberta == "cadastro":
                 if st.form_submit_button("Salvar e Fechar"):
                     if nome and cpf:
                         salvar_cliente(cpf, "PF", nome, rg, dt_nasc, orgao)
-                        st.session_state.aba_aberta = None  # Volta para tela inicial
+                        st.session_state.aba_aberta = None
                         st.rerun()
             else:
                 nome_emp = st.text_input("Nome da Empresa:")
@@ -204,9 +233,9 @@ if st.session_state.aba_aberta == "cadastro":
                 if st.form_submit_button("Salvar e Fechar"):
                     if nome_emp and cnpj:
                         salvar_cliente(cnpj, "PJ", nome_emp, dt_fund=dt_fund)
-                        st.session_state.aba_aberta = None  # Volta para tela inicial
+                        st.session_state.aba_aberta = None
                         st.rerun()
-        if st.button("❌ Cancelar e Sair"):
+        if st.button("❌ Cancelar e Sair", key="btn_cancelar_cad"):
             st.session_state.aba_aberta = None
             st.rerun()
 
@@ -219,13 +248,13 @@ if st.session_state.aba_aberta == "pedido":
             cliente_encontrado = buscar_cliente(doc_busca)
             if cliente_encontrado:
                 st.success(f"Cliente Encontrado: {cliente_encontrado[0]} ({cliente_encontrado[1]})")
-                if st.button("Confirmar Pedido e Fechar", type="primary"):
+                if st.button("Confirmar Pedido e Fechar", type="primary", key="btn_conf_ped"):
                     criar_novo_pedido(doc_busca)
-                    st.session_state.aba_aberta = None  # Volta para tela inicial
+                    st.session_state.aba_aberta = None
                     st.rerun()
             else:
                 st.error("Cliente não localizado. Realize o cadastro primeiro.")
-        if st.button("❌ Cancelar e Sair"):
+        if st.button("❌ Cancelar e Sair", key="btn_cancelar_ped"):
             st.session_state.aba_aberta = None
             st.rerun()
 
@@ -237,26 +266,3 @@ if st.session_state.pedido_selecionado is not None:
         st.write(f"**Cliente:** {row['nome']} | **Documento:** {row['documento_cliente']} ({row['tipo']})")
         st.markdown("---")
         
-        st.info(row['observacoes'] if row['observacoes'] else "Nenhuma informação adicionada.")
-        novas_obs = st.text_area("Adicionar Informações / Histórico Manual:", value=row['observacoes'])
-        
-        arquivo = st.file_uploader("Anexar Arquivos / Notas:")
-        if arquivo:
-            st.caption(f"📎 Arquivo anexado: {arquivo.name}")
-            
-        etapas_lista = [
-            "Pedido Criado", "Confirmar Pix", "Faturar Notas", 
-            "Faturar Entregar e Receber", "Cliente vem Buscar", 
-            "Entregas via Tecar", "Transportadora", "Pedido Finalizado"
-        ]
-        nova_fase = st.selectbox("Mover Pedido para a Etapa:", etapas_lista, index=etapas_lista.index(row['etapa']))
-        
-        col_salvar, col_cancelar = st.columns(2)
-        with col_salvar:
-            if st.button("💾 Salvar Alterações e Voltar", type="primary"):
-                atualizar_pedido(row['id'], nova_fase, novas_obs)
-                st.session_state.pedido_selecionado = None  # Limpa e volta para tela inicial
-                st.rerun()
-        with col_cancelar:
-            if st.button("❌ Cancelar"):
-
