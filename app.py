@@ -37,8 +37,6 @@ def criar_banco():
             observacoes TEXT DEFAULT ''
         )
     ''')
-    
-    # Reconstrói a tabela de usuários de forma limpa para evitar conflitos de colunas antigas
     c.execute('''
         CREATE TABLE IF NOT EXISTS usuarios (
             usuario TEXT PRIMARY KEY,
@@ -51,7 +49,18 @@ def criar_banco():
         )
     ''')
     
-    # Atualizações de segurança para colunas de arquivos e autores
+    try:
+        c.execute("ALTER TABLE usuarios ADD COLUMN usuario TEXT")
+    except sqlite3.OperationalError:
+        pass
+    try:
+        c.execute("ALTER TABLE usuarios ADD COLUMN senha TEXT")
+    except sqlite3.OperationalError:
+        pass
+    try:
+        c.execute("ALTER TABLE usuarios ADD COLUMN autorizado TEXT DEFAULT 'PENDENTE'")
+    except sqlite3.OperationalError:
+        pass
     try:
         c.execute("ALTER TABLE pedidos ADD COLUMN arquivo_caminho TEXT DEFAULT ''")
     except sqlite3.OperationalError:
@@ -68,7 +77,6 @@ def cadastrar_usuario(usuario, senha, nome, cpf, dt_nasc, telefone):
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
     try:
-        # Força a inserção limpando registros corrompidos com o mesmo nome de usuário
         c.execute("DELETE FROM usuarios WHERE usuario = ?", (usuario.strip().lower(),))
         c.execute('''
             INSERT INTO usuarios (usuario, senha, nome, cpf, data_nascimento, telefone, autorizado)
@@ -76,7 +84,7 @@ def cadastrar_usuario(usuario, senha, nome, cpf, dt_nasc, telefone):
         ''', (usuario.strip().lower(), senha, nome, cpf, dt_nasc, telefone))
         conn.commit()
         sucesso = True
-    except Exception as e:
+    except Exception:
         sucesso = False
     conn.close()
     return sucesso
@@ -247,7 +255,6 @@ if not st.session_state["logado"]:
                     st.error("Usuário ou senha incorretos.")
                     
     with tab_cadastro:
-        # CORREÇÃO: clear_on_submit alterado para False para manter os textos salvos na tela se houver erro
         with st.form("form_cadastro_sistema", clear_on_submit=False):
             new_nome = st.text_input("Nome Completo:")
             new_cpf = st.text_input("CPF (Apenas números):")
@@ -261,4 +268,5 @@ if not st.session_state["logado"]:
                 if new_nome and new_cpf and new_nasc and new_fone and new_user and new_pass:
                     if new_user.strip().lower() == USER_MASTER:
                         st.error("Este nome de usuário é reservado ao administrador.")
-                    elif cadastrar_usuario(new_user, new_pass, new_nome, new_cpf, new_nasc, new_fone):
+                    else:
+                        cadastrou = cadastrar_usuario(new_user, new_pass, new_nome, new_cpf, new_nasc, new_fone)
