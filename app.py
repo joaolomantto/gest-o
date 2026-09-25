@@ -7,7 +7,7 @@ import base64
 # 1. Configuração e Conexão com Banco de Dados SQLite
 DB_FILE = "sistema_agendor_custom.db"
 UPLOAD_DIR = "arquivos_pedidos"
-CHAVE_MESTRE_CHEFE = "admin123"  # <--- SUA SENHA PARA ENTRAR E AUTORIZAR AS PESSOAS
+CHAVE_MESTRE_CHEFE = "admin123"  # <--- SUA SENHA MASTER DO CHEFE
 
 if not os.path.exists(UPLOAD_DIR):
     os.makedirs(UPLOAD_DIR)
@@ -82,7 +82,7 @@ def checar_status_usuario(cpf):
 
 def listar_usuarios_pendentes():
     conn = sqlite3.connect(DB_FILE)
-    df = pd.read_sql_query("SELECT cpf, nome, email, telefone FROM usuarios WHERE autorizado = 0", conn)
+    df = pd.read_sql_query("SELECT cpf, nome, email, telephone FROM usuarios WHERE autorizado = 0", conn)
     conn.close()
     return df
 
@@ -191,66 +191,70 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# ----------------------------------------------------
-# VERIFICAÇÃO DE SESSÃO DO CHEFE DE EMERGÊNCIA
-# ----------------------------------------------------
-if not st.session_state["modo_chefe_emergencia"]:
-    if st.session_state["usuario_cpf"] == "":
-        st.title("📋 Bem-vindo ao Sistema de Gestão")
-        st.subheader("Primeiro acesso detectado. Por favor, identifique-se ou faça o seu cadastro.")
-        
-        aba_login, aba_cadastro = st.tabs(["Já tenho Cadastro", "Criar Novo Cadastro"])
-        
-        with aba_login:
-            with st.form("form_entrar"):
-                login_cpf = st.text_input("Digite seu CPF cadastrado:")
-                btn_entrar = st.form_submit_button("Entrar no Painel")
-                if btn_entrar:
-                    if login_cpf.strip():
-                        status = checar_status_usuario(login_cpf.strip())
-                        if status:
-                            st.session_state["usuario_cpf"] = login_cpf.strip()
-                            st.session_state["usuario_nome"] = status[0]
-                            st.rerun()
-                        else:
-                            st.error("CPF não localizado no sistema. Vá na aba ao lado e realize o cadastro.")
-                    else:
-                        st.warning("Preencha o campo de CPF.")
-                        
-        with aba_cadastro:
-            with st.form("form_registro_inicial", clear_on_submit=True):
-                reg_nome = st.text_input("Nome Completo:")
-                reg_cpf = st.text_input("CPF (Apenas números):")
-                reg_email = st.text_input("E-mail Corporativo:")
-                reg_nasc = st.text_input("Data de Nascimento (DD/MM/AAAA):")
-                reg_fone = st.text_input("Número de Telefone (com DDD):")
-                
-                if st.form_submit_button("Solicitar Acesso ao Sistema"):
-                    if reg_nome and reg_cpf and reg_email and reg_nasc and reg_fone:
-                        if cadastrar_usuario(reg_nome, reg_cpf, reg_email, reg_nasc, reg_fone):
-                            st.session_state["usuario_cpf"] = reg_cpf
-                            st.session_state["usuario_nome"] = reg_nome
-                            st.success("Cadastro realizado! Aguardando aprovação.")
-                            st.rerun()
-                        else:
-                            st.error("Este CPF já possui uma solicitação registrada.")
-                    else:
-                        st.error("Todos os campos do formulário são obrigatórios.")
-        
-        # Entrada secreta caso o chefe mestre caia na tela inicial sem conta
-        st.markdown("---")
-        with st.expander("🔑 Acesso Direto do Administrador (Chefe)"):
-            senha_direta = st.text_input("Digite a senha master para pular o cadastro:", type="password", key="senha_inicial")
-            if st.button("Ignorar e Entrar como Chefe"):
-                if senha_direta == CHAVE_MESTRE_CHEFE:
-                    st.session_state["modo_chefe_emergencia"] = True
-                    st.session_state["usuario_nome"] = "Administrador"
-                    st.rerun()
-                else:
-                    st.error("Senha incorreta.")
-        st.stop()
+# CORREÇÃO: Função rápida de Login do Chefe para pular os bloqueios na hora
+def forcar_login_chefe():
+    st.session_state["modo_chefe_emergencia"] = True
+    st.session_state["usuario_nome"] = "Administrador"
+    st.session_state["usuario_cpf"] = "MASTER"
 
-    # Checa se o usuário atual logado já foi liberado por você no banco
+# ----------------------------------------------------
+# FLUXO DE ENTRADA: CADASTRO OU ESPERA DE PERMISSÃO
+# ----------------------------------------------------
+if not st.session_state["modo_chefe_emergencia"] and st.session_state["usuario_cpf"] == "":
+    st.title("📋 Bem-vindo ao Sistema de Gestão")
+    st.subheader("Primeiro acesso detectado. Por favor, identifique-se ou faça o seu cadastro.")
+    
+    aba_login, aba_cadastro = st.tabs(["Já tenho Cadastro", "Criar Novo Cadastro"])
+    
+    with aba_login:
+        with st.form("form_entrar"):
+            login_cpf = st.text_input("Digite seu CPF cadastrado:")
+            btn_entrar = st.form_submit_button("Entrar no Painel")
+            if btn_entrar:
+                if login_cpf.strip():
+                    status = checar_status_usuario(login_cpf.strip())
+                    if status:
+                        st.session_state["usuario_cpf"] = login_cpf.strip()
+                        st.session_state["usuario_nome"] = status[0]
+                        st.rerun()
+                    else:
+                        st.error("CPF não localizado no sistema. Vá na aba ao lado e realize o cadastro.")
+                else:
+                    st.warning("Preencha o campo de CPF.")
+                    
+    with aba_cadastro:
+        with st.form("form_registro_inicial", clear_on_submit=True):
+            reg_nome = st.text_input("Nome Completo:")
+            reg_cpf = st.text_input("CPF (Apenas números):")
+            reg_email = st.text_input("E-mail Corporativo:")
+            reg_nasc = st.text_input("Data de Nascimento (DD/MM/AAAA):")
+            reg_fone = st.text_input("Número de Telefone (com DDD):")
+            
+            if st.form_submit_button("Solicitar Acesso ao Sistema"):
+                if reg_nome and reg_cpf and reg_email and reg_nasc and reg_fone:
+                    if cadastrar_usuario(reg_nome, reg_cpf, reg_email, reg_nasc, reg_fone):
+                        st.session_state["usuario_cpf"] = reg_cpf
+                        st.session_state["usuario_nome"] = reg_nome
+                        st.success("Cadastro realizado! Aguardando aprovação.")
+                        st.rerun()
+                    else:
+                        st.error("Este CPF já possui uma solicitação registrada.")
+                else:
+                    st.error("Todos os campos do formulário são obrigatórios.")
+    
+    st.markdown("---")
+    with st.expander("🔑 Acesso Direto do Administrador (Chefe)"):
+        senha_direta = st.text_input("Digite a senha master para pular o cadastro:", type="password", key="senha_inicial")
+        if st.button("Ignorar e Entrar como Chefe"):
+            if senha_direta == CHAVE_MESTRE_CHEFE:
+                forcar_login_chefe()
+                st.rerun()
+            else:
+                st.error("Senha incorreta.")
+    st.stop()
+
+# Se não for o chefe emergencial, checa o status de aprovação comum no banco
+if not st.session_state["modo_chefe_emergencia"]:
     dados_usuario = checar_status_usuario(st.session_state["usuario_cpf"])
     if dados_usuario and dados_usuario[1] == 0:
         st.title("📋 Aguardando Liberação")
