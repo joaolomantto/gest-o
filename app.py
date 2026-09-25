@@ -2,8 +2,8 @@ import streamlit as st
 import sqlite3
 import pandas as pd
 
-# 1. BANCO DE DADOS (Oficial e limpo)
-DB_FILE = "sistema_agendor_oficial.db"
+# 1. Configuração e Conexão com Banco de Dados SQLite
+DB_FILE = "sistema_agendor_custom.db"
 
 def criar_banco():
     conn = sqlite3.connect(DB_FILE)
@@ -66,76 +66,59 @@ def atualizar_pedido(id_ped, nova_etapa, novas_obs):
 def carregar_fluxo():
     conn = sqlite3.connect(DB_FILE)
     df = pd.read_sql_query('''
-        SELECT p.id, p.documento_cliente, p.etapa, p.observacoes, IFNULL(c.nome, 'Cliente Sem Cadastro') as nome, IFNULL(c.tipo, 'PF') as tipo
+        SELECT p.id, p.documento_cliente, p.etapa, p.observacoes, c.nome, c.tipo
         FROM pedidos p
-        LEFT JOIN clientes c ON p.documento_cliente = c.documento
+        JOIN clientes c ON p.documento_cliente = c.documento
     ''', conn)
     conn.close()
     return df
 
 criar_banco()
 
-# As 8 etapas na ordem exata solicitada
-ETAPAS_GLOBAL = [
-    "Pedido Criado", "Confirmar Pix", "Faturar Notas", 
-    "Faturar Entregar e Receber", "Cliente vem Buscar", 
-    "Entregas via Tecar", "Transportadora", "Pedido Finalizado"
-]
+# Inicialização do controle de janelas e cliques
+if "pedido_selecionado" not in st.session_state:
+    st.session_state.pedido_selecionado = None
 
-# 2. CONFIGURAÇÃO DA INTERFACE (Tema Claro e Expansão)
+# 2. Interface Avançada e Configuração de Tela
 st.set_page_config(layout="wide", page_title="Gestão de Fluxo", page_icon="📋")
 
-# Injeção de CSS de Alta Performance (Fundo Branco, Linhas e Caixas Quadradas)
+# Estilização do Design Original (Botões Amarelos e Divisórias verticais)
 st.markdown("""
     <style>
-    /* Força todas as camadas do Streamlit a ficarem BRANCAS */
-    html, body, .stApp, [data-testid="stAppViewContainer"], [data-testid="stHeader"], [data-testid="stMainBlockContainer"] {
-        background-color: #ffffff !important;
-    }
-    
-    /* Força os textos e títulos para PRETO PURO */
-    h1, h2, h3, h4, h5, h6, p, span, label, li, div, .stMarkdown, p font {
-        color: #000000 !important;
-    }
-
-    /* Customização dos botões amarelos superiores do topo direito */
-    div.element-container button[data-testid="stBaseButton-primary"] {
+    div[data-testid="stExpander"] {
         background-color: #FFD700 !important;
+        border: 1px solid #E6C200 !important;
+        border-radius: 4px !important;
+    }
+    div[data-testid="stExpander"] p {
         color: #000000 !important;
         font-weight: bold !important;
-        border: 1px solid #E6C200 !important;
-        width: 100% !important;
-    }
-    div.element-container button[data-testid="stBaseButton-primary"]:hover {
-        background-color: #E6C200 !important;
-        color: #000000 !important;
     }
     
-    /* Configuração e linhas verticais contínuas entre as colunas do funil */
+    /* Força as divisões de colunas irem de cima até embaixo */
     div[data-testid="stHorizontalBlock"] {
         align-items: stretch !important;
-        background-color: #ffffff !important;
     }
     
     div[data-testid="column"] {
         padding-right: 10px !important;
         padding-left: 10px !important;
-        border-right: 1px solid #cccccc !important; /* Linha de divisa cinza nítida */
+        border-right: 1px solid #d1d5db !important; /* Divisa cinza original */
     }
     
     div[data-testid="column"]:last-child {
         border-right: none !important;
     }
     
-    /* CAIXA DE TÍTULO SUPERIOR: Altura fixa para manter o alinhamento horizontal perfeito */
+    /* Caixa de Etapas Superior */
     .topo-coluna {
         background-color: #ffffff;
-        border: 1px solid #000000;
-        padding: 6px 4px;
+        border: 1px solid #e2e8f0;
+        padding: 8px 4px;
         border-radius: 4px;
         text-align: center;
         margin-bottom: 20px;
-        height: 58px; /* Altura ideal para alinhar textos longos de duas linhas */
+        height: 55px;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -145,74 +128,42 @@ st.markdown("""
     .texto-topo {
         font-size: 10px;
         font-weight: bold;
-        color: #000000 !important;
+        color: #1a202c;
         line-height: 1.2;
     }
     
-    /* CONFIGURAÇÃO DA CAIXINHA QUADRADA DO PEDIDO (CSS aplicado diretamente sobre o botão nativo) */
+    /* Efeito de Zoom com 0.8s nos botões-cards nativos */
     div.element-container button[data-testid="stBaseButton-secondary"] {
         background-color: #ffffff !important;
-        border: 1px solid #babcbf !important;
-        border-top: 4px solid #FFD700 !important; /* Detalhe amarelo superior */
+        border: 1px solid #e2e8f0 !important;
+        border-top: 4px solid #FFD700 !important;
         border-radius: 4px !important;
         padding: 12px !important;
         width: 100% !important;
         height: auto !important;
-        min-height: 85px !important;
+        min-height: 80px !important;
         text-align: left !important;
-        box-shadow: 0px 1px 3px rgba(0, 0, 0, 0.08) !important;
+        box-shadow: 0px 1px 3px rgba(0, 0, 0, 0.05) !important;
         display: block !important;
         transition: transform 0.3s ease, box-shadow 0.3s ease !important;
-        transition-delay: 0.8s !important; /* Zoom só ativa após 0,8s parado */
+        transition-delay: 0.8s !important;
     }
     
-    /* Força os textos internos da caixinha a ficarem pretos */
     div.element-container button[data-testid="stBaseButton-secondary"] p {
-        color: #000000 !important;
+        color: #1a202c !important;
         font-weight: bold !important;
         white-space: pre-wrap !important;
     }
     
     div.element-container button[data-testid="stBaseButton-secondary"]:hover {
-        transform: scale(1.06) !important; /* Pequeno Zoom de destaque */
-        box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.15) !important;
-        background-color: #ffffff !important;
-    }
-
-    /* Garante que os campos de digitação funcionem em modo claro */
-    input, textarea, select {
-        color: #000000 !important;
+        transform: scale(1.06) !important;
+        box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.12) !important;
         background-color: #ffffff !important;
     }
     </style>
 """, unsafe_allow_html=True)
 
-# 3. JANELA MODAL FLUTUANTE (Detalhes do pedido ao clicar na caixinha quadrada)
-@st.dialog("⚙️ Detalhes e Ações do Pedido")
-def modal_detalhes_pedido(row):
-    st.write(f"**Código:** P-{row['id']}")
-    st.write(f"**Cliente:** {row['nome']} | **Documento:** {row['documento_cliente']} ({row['tipo']})")
-    st.markdown("---")
-    
-    st.info(row['observacoes'] if row['observacoes'] else "Nenhuma informação ou histórico adicionado.")
-    novas_obs = st.text_area("Adicionar Informações / Histórico Manual:", value=row['observacoes'])
-    
-    arquivo = st.file_uploader("Anexar Arquivos / Notas / Imagens:")
-    if arquivo:
-        st.caption(f"📎 Arquivo anexado: {arquivo.name}")
-        
-    nova_fase = st.selectbox("Mover Pedido para a Etapa:", ETAPAS_GLOBAL, index=ETAPAS_GLOBAL.index(row['etapa']))
-    
-    col_save, col_close = st.columns(2)
-    with col_save:
-        if st.button("💾 Salvar Alterações", type="primary"):
-            atualizar_pedido(row['id'], nova_fase, novas_obs)
-            st.rerun()
-    with col_close:
-        if st.button("❌ Sair sem Salvar"):
-            st.rerun()
-
-# 4. CABEÇALHO PRINCIPAL (Título e Botões Amarelos Alinhados à Direita)
+# Layout do Cabeçalho
 col_titulo, col_btn1, col_btn2 = st.columns([6, 2, 2])
 
 with col_titulo:
@@ -250,11 +201,10 @@ with criar_cad:
                     st.success("Cliente PJ Cadastrado!")
                     st.rerun()
 
-# Fluxo Criar Pedido (Ajustado sem blocos aninhados perigosos)
+# Fluxo Criar Pedido
 with criar_ped:
     st.markdown("<p style='color:black; font-weight:bold;'>Novo Pedido</p>", unsafe_allow_html=True)
     doc_busca = st.text_input("Digite o CPF ou CNPJ do Cliente:")
-    
     if doc_busca:
         cliente_encontrado = buscar_cliente(doc_busca)
         if cliente_encontrado:
@@ -264,4 +214,59 @@ with criar_ped:
                 st.success("Pedido enviado para 'Pedido Criado'!")
                 st.rerun()
         else:
-            st.warning("Cliente não localizado. Criando pedido direto.")
+            st.error("Cliente não localizado. Realize o cadastro primeiro.")
+
+# ---- JANELA DINÂMICA DE DETALHES (Volta para a inicial ao Salvar/Cancelar) ----
+if st.session_state.pedido_selecionado is not None:
+    row = st.session_state.pedido_selecionado
+    with st.container(border=True):
+        st.markdown(f"### ⚙️ Detalhes do Pedido P-{row['id']}")
+        st.write(f"**Cliente:** {row['nome']} | **Documento:** {row['documento_cliente']} ({row['tipo']})")
+        st.markdown("---")
+        
+        st.info(row['observacoes'] if row['observacoes'] else "Nenhuma informação adicionada.")
+        novas_obs = st.text_area("Adicionar Informações / Histórico Manual:", value=row['observacoes'], key=f"obs_edit_{row['id']}")
+        
+        arquivo = st.file_uploader("Adicionar arquivos:", key=f"file_edit_{row['id']}")
+        if arquivo:
+            st.caption(f"📎 Arquivo anexado: {arquivo.name}")
+            
+        etapas_lista = ["Pedido Criado", "Confirmar Pix", "Faturar Notas", "Faturar Entregar e Receber", "Cliente vem Buscar", "Entregas via Tecar", "Transportadora", "Pedido Finalizado"]
+        nova_fase = st.selectbox("Mover manualmente para:", etapas_lista, index=etapas_lista.index(row['etapa']), key=f"fase_edit_{row['id']}")
+        
+        col_salvar, col_cancelar = st.columns(2)
+        with col_salvar:
+            if st.button("💾 Salvar Alterações e Fechar", type="primary", key=f"save_btn_{row['id']}"):
+                atualizar_pedido(row['id'], nova_fase, novas_obs)
+                st.session_state.pedido_selecionado = None
+                st.rerun()
+        with col_cancelar:
+            if st.button("❌ Cancelar e Sair", key=f"cancel_btn_{row['id']}"):
+                st.session_state.pedido_selecionado = None
+                st.rerun()
+
+st.markdown("---")
+
+# 3. Geração das 8 Colunas Alinhadas do Quadro original
+etapas = [
+    "Pedido Criado", "Confirmar Pix", "Faturar Notas", 
+    "Faturar Entregar e Receber", "Cliente vem Buscar", 
+    "Entregas via Tecar", "Transportadora", "Pedido Finalizado"
+]
+
+colunas_quadro = st.columns(len(etapas))
+df_pedidos = carregar_fluxo()
+
+for idx_etapa, etapa in enumerate(etapas):
+    with colunas_quadro[idx_etapa]:
+        st.markdown(f"""
+            <div class='topo-coluna'>
+                <span class='texto-topo'>{etapa.upper()}</span>
+            </div>
+        """, unsafe_allow_html=True)
+        
+        pedidos_fase = df_pedidos[df_pedidos["etapa"] == etapa] if not df_pedidos.empty else pd.DataFrame()
+        
+        for _, row in pedidos_fase.iterrows():
+            texto_card = f"P-{row['id']} \n {row['nome']}"
+            
