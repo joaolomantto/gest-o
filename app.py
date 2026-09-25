@@ -34,11 +34,10 @@ def criar_banco():
         )
     ''')
     
-    # CORREÇÃO DEFINITIVA: Tenta adicionar a coluna. Se der erro porque já existe, ele ignora com segurança.
     try:
         c.execute("ALTER TABLE pedidos ADD COLUMN arquivo_caminho TEXT DEFAULT ''")
     except sqlite3.OperationalError:
-        pass  # A coluna já existe, não faz nada
+        pass
         
     conn.commit()
     conn.close()
@@ -208,7 +207,7 @@ with criar_ped:
     if doc_busca:
         cliente_encontrado = buscar_cliente(doc_busca)
         if cliente_encontrado:
-            st.info(f"Cliente identificado: {cliente_encontrado}")
+            st.info(f"Cliente identificado: {cliente_encontrado[0]}")
             if st.button("Confirmar e Criar Pedido", type="primary"):
                 criar_novo_pedido(doc_busca)
                 st.success("Pedido enviado para 'Pedido Criado'!")
@@ -277,3 +276,6 @@ for idx_etapa, etapa in enumerate(etapas):
                         st.rerun()
                         
                 with col_excluir:
+                    if st.button("🚫 Excluir Pedido", key=f"btn_excluir_{row['id']}", type="secondary", use_container_width=True):
+                        excluir_pedido(row['id'])
+                        st.rerun()
