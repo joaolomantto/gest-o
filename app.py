@@ -39,7 +39,7 @@ def criar_banco():
         )
     ''')
     
-    # ADICIONA AS COLUNAS SE O BANCO JÁ EXISTIR ANTIGO (Prevenção do erro da imagem)
+    # Adiciona colunas de migração se o banco já existia antigo de forma segura
     try:
         c.execute("ALTER TABLE pedidos ADD COLUMN arquivo_caminho TEXT DEFAULT ''")
     except sqlite3.OperationalError:
@@ -132,7 +132,7 @@ def exibir_pdf(caminho_pdf):
     except Exception as e:
         st.error(f"Erro ao carregar o arquivo PDF: {e}")
 
-# Garante a migração segura da estrutura de dados
+# Inicia o banco estruturado
 criar_banco()
 
 # 2. Interface Estilizada e Minimalista
@@ -197,7 +197,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-col_titulo, col_btn1, col_btn2 = st.columns()
+col_titulo, col_btn1, col_btn2 = st.columns([6, 2, 2])
 
 with col_titulo:
     st.title("📋 Painel de Controle")
@@ -263,7 +263,7 @@ etapas = [
 colunas_quadro = st.columns(len(etapas))
 df_pedidos = carregar_fluxo()
 
-# Mantém estável o estado do ID clicado
+# Mantém estável o estado do ID clicado na sessão
 if "pedido_selecionado_id" not in st.session_state:
     st.session_state.pedido_selecionado_id = None
 
@@ -283,6 +283,8 @@ for idx_etapa, etapa in enumerate(etapas):
         if not pedidos_fase.empty:
             for index, row in pedidos_fase.iterrows():
                 nome_exibicao = row['nome'] if row['nome'] else "Cliente não vinculado"
+                
+                # CARTÃO DO KANBAN TOTALMENTE CORRIGIDO E FECHADO
                 st.markdown(f"""
                     <div class='caixa-pedido'>
                         <div class='id-pedido'>PEDIDO #{int(row['id'])}</div>
