@@ -3,19 +3,14 @@ import sqlite3
 import pandas as pd
 import os
 import base64
-import hashlib
 
-# 1. Configuração e Conexão com Banco de Dados SQLite (v2 para evitar conflito)
-DB_FILE = "sistema_agendor_v2.db"
+# 1. Configuração e Conexão com Banco de Dados SQLite
+DB_FILE = "sistema_agendor_custom.db"
 UPLOAD_DIR = "arquivos_pedidos"
 
 # Cria a pasta para salvar os arquivos anexados, se não existir
 if not os.path.exists(UPLOAD_DIR):
     os.makedirs(UPLOAD_DIR)
-
-def gerará_hash_senha(senha):
-    """Criptografa a senha para salvar no banco de dados com segurança."""
-    return hashlib.sha256(senha.encode('utf-8')).hexdigest()
 
 def criar_banco():
     conn = sqlite3.connect(DB_FILE)
@@ -36,44 +31,24 @@ def criar_banco():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             documento_cliente TEXT NOT NULL,
             etapa TEXT NOT NULL,
-            observacoes TEXT DEFAULT '',
-            arquivo_caminho TEXT DEFAULT '',
-            autor TEXT DEFAULT 'Não informado'
+            observacoes TEXT DEFAULT ''
         )
     ''')
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS usuarios (
-            username TEXT PRIMARY KEY,
-            nome TEXT NOT NULL,
-            senha_hash TEXT NOT NULL
-        )
-    ''')
+    
+    # Adiciona a coluna de arquivos se ela não existir
+    try:
+        c.execute("ALTER TABLE pedidos ADD COLUMN arquivo_caminho TEXT DEFAULT ''")
+    except sqlite3.OperationalError:
+        pass
+
+    # Adiciona a coluna de autor se ela não existir de forma segura
+    try:
+        c.execute("ALTER TABLE pedidos ADD COLUMN autor TEXT DEFAULT 'Não informado'")
+    except sqlite3.OperationalError:
+        pass
+        
     conn.commit()
     conn.close()
-
-def cadastrar_usuario(username, nome, senha):
-    conn = sqlite3.connect(DB_FILE)
-    c = conn.cursor()
-    senha_hash = gerará_hash_senha(senha)
-    try:
-        c.execute("INSERT OR REPLACE INTO usuarios (username, nome, senha_hash) VALUES (?, ?, ?)", 
-                  (username.strip().lower(), nome, senha_hash))
-        conn.commit()
-        sucesso = True
-    except sqlite3.IntegrityError:
-        sucesso = False
-    conn.close()
-    return sucesso
-
-def verificar_login(username, senha):
-    conn = sqlite3.connect(DB_FILE)
-    c = conn.cursor()
-    senha_hash = gerará_hash_senha(senha)
-    c.execute("SELECT nome FROM usuarios WHERE username = ? AND senha_hash = ?", 
-              (username.strip().lower(), senha_hash))
-    res = c.fetchone()
-    conn.close()
-    return res
 
 def buscar_cliente(doc):
     conn = sqlite3.connect(DB_FILE)
@@ -119,6 +94,7 @@ def excluir_pedido(id_ped):
 
 def carregar_fluxo():
     conn = sqlite3.connect(DB_FILE)
+    # Mudado para LEFT JOIN para manter a estrutura das colunas visível mesmo sem pedidos cadastrados
     df = pd.read_sql_query('''
         SELECT p.id, p.documento_cliente, p.etapa, p.observacoes, p.arquivo_caminho, p.autor, c.nome, c.tipo
         FROM pedidos p
@@ -127,6 +103,7 @@ def carregar_fluxo():
     conn.close()
     return df
 
+# Função auxiliar para gerar visualização embutida de arquivos PDF
 def exibir_pdf(caminho_pdf):
     try:
         with open(caminho_pdf, "rb") as f:
@@ -136,65 +113,11 @@ def exibir_pdf(caminho_pdf):
     except Exception as e:
         st.error(f"Erro ao carregar o arquivo PDF: {e}")
 
-# Inicializa o banco de dados limpo
 criar_banco()
 
-# 2. Interface Estilizada e Configuração Inicial
+# 2. Interface Estilizada e Minimalista
 st.set_page_config(layout="wide", page_title="Gestão de Fluxo", page_icon="📋")
 
-# Controle de Sessão de Usuário
-if "usuario" not in st.session_state:
-    st.session_state.usuario = None
-if "usuario_nome" not in st.session_state:
-    st.session_state.usuario_nome = None
-
-# Sidebar Dinâmica para Autenticação
-with st.sidebar:
-    st.header("👤 Autenticação")
-    if st.session_state.usuario is None:
-        ja_tem_conta = st.checkbox("Já tenho uma conta cadastrada", value=True)
-        
-        if ja_tem_conta:
-            st.subheader("Fazer Login")
-            user_login = st.text_input("Usuário (Username):", key="login_user")
-            senha_login = st.text_input("Senha:", type="password", key="login_senha")
-            
-            if st.button("Acessar Painel", type="primary", use_container_width=True):
-                dados_user = verificar_login(user_login, senha_login)
-                if dados_user:
-                    st.session_state.usuario = user_login.strip().lower()
-                    st.session_state.usuario_nome = dados_user[0] if isinstance(dados_user, tuple) else dados_user
-                    st.success(f"Bem-vindo, {st.session_state.usuario_nome}!")
-                    st.rerun()
-                else:
-                    st.error("Usuário ou senha incorretos.")
-        else:
-            st.subheader("Criar Novo Cadastro")
-            new_user = st.text_input("Escolha um Username:", key="cad_user")
-            new_nome = st.text_input("Seu Nome Completo:", key="cad_nome")
-            new_senha = st.text_input("Defina uma Senha:", type="password", key="cad_senha")
-            
-            if st.button("Registrar Conta", use_container_width=True):
-                if new_user and new_nome and new_senha:
-                    if cadastrar_usuario(new_user, new_nome, new_senha):
-                        st.success("Cadastro realizado! Marque a caixa acima para fazer login.")
-                    else:
-                        st.error("Este Username já está em uso.")
-                else:
-                    st.error("Por favor, preencha todos os campos do cadastro.")
-    else:
-        st.write(f"Conectado como: **{st.session_state.usuario_nome}** (`{st.session_state.usuario}`)")
-        if st.button("Sair / Desconectar", use_container_width=True):
-            st.session_state.usuario = None
-            st.session_state.usuario_nome = None
-            st.rerun()
-
-# Se não houver sessão ativa, interrompe a execução do Kanban e oculta os funis
-if st.session_state.usuario is None:
-    st.warning("⚠️ Faça login na barra lateral para carregar as informações do sistema.")
-    st.stop()
-
-# Estilos CSS Customizados
 st.markdown("""
     <style>
     div[data-testid="stExpander"] {
@@ -207,18 +130,22 @@ st.markdown("""
         color: #000000 !important;
         font-weight: bold !important;
     }
+    
     div[data-testid="stHorizontalBlock"] {
         align-items: stretch !important;
     }
+    
     div[data-testid="column"] {
         padding-right: 10px !important;
         padding-left: 10px !important;
         border-right: 1px solid #e2e8f0 !important;
         min-height: 80vh !important;
     }
+    
     div[data-testid="column"]:last-child {
         border-right: none !important;
     }
+    
     .topo-coluna {
         background-color: #f8fafc;
         padding: 6px;
@@ -231,6 +158,7 @@ st.markdown("""
         align-items: center;
         justify-content: center;
     }
+    
     .caixa-pedido {
         background-color: #ffffff;
         border: 1px solid #e2e8f0;
@@ -240,12 +168,14 @@ st.markdown("""
         margin-bottom: 8px;
         box-shadow: 0px 1px 3px rgba(0, 0, 0, 0.05);
     }
+    
     .id-pedido {
         font-size: 13px;
         font-weight: bold;
         color: #1a202c;
         margin-bottom: 2px;
     }
+    
     .nome-cliente {
         font-size: 13px;
         color: #4a5568;
@@ -254,7 +184,6 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# CORREÇÃO DEFINITIVA: Passando as proporções originais estáveis para organizar o cabeçalho
 col_titulo, col_btn1, col_btn2 = st.columns([6, 2, 2])
 
 with col_titulo:
@@ -267,17 +196,87 @@ with col_btn2:
 
 with criar_cad:
     st.markdown("<p style='color:black; font-weight:bold;'>Novo Cliente</p>", unsafe_allow_html=True)
+    tipo_pess = st.radio("Tipo de Pessoa", ["PESSOA FÍSICA", "PESSOA JURÍDICA"], horizontal=True)
     
-    aba_pf, aba_pj = st.tabs(["PESSOA FÍSICA", "PESSOA JURÍDICA"])
-    
-    with aba_pf:
-        with st.form("form_novo_pf", clear_on_submit=True):
-            pf_nome = st.text_input("Nome:")
-            pf_cpf = st.text_input("CPF:")
-            pf_rg = st.text_input("RG:")
-            pf_dt_nasc = st.text_input("Data de Nascimento (DD/MM/AAAA):")
-            pf_orgao = st.text_input("Órgão Emissor:")
-            st.form_submit_button("Salvar Cliente Física")
+    with st.form("form_cliente", clear_on_submit=True):
+        if tipo_pess == "PESSOA FÍSICA":
+            nome = st.text_input("Nome:")
+            cpf = st.text_input("CPF:")
+            rg = st.text_input("RG:")
+            dt_nasc = st.text_input("Data de Nascimento (DD/MM/AAAA):")
+            orgao = st.text_input("Órgão Emissor:")
+            if st.form_submit_button("Salvar Cliente"):
+                if nome and cpf:
+                    salvar_cliente(cpf, "PF", nome, rg, dt_nasc, orgao)
+                    st.success("Cliente PF Cadastrado!")
+                    st.rerun()
+        else:
+            nome_emp = st.text_input("Nome da Empresa:")
+            cnpj = st.text_input("CNPJ:")
+            dt_fund = st.text_input("Data de Fundação (DD/MM/AAAA):")
+            if st.form_submit_button("Salvar Empresa"):
+                if nome_emp and cnpj:
+                    salvar_cliente(cnpj, "PJ", nome_emp, dt_fund=dt_fund)
+                    st.success("Cliente PJ Cadastrado!")
+                    st.rerun()
+
+with criar_ped:
+    st.markdown("<p style='color:black; font-weight:bold;'>Novo Pedido</p>", unsafe_allow_html=True)
+    doc_busca = st.text_input("Digite o CPF ou CNPJ do Cliente:")
+    if doc_busca:
+        cliente_encontrado = buscar_cliente(doc_busca)
+        if cliente_encontrado:
+            st.info(f"Cliente identificado: {cliente_encontrado}")
+            autor_input = st.text_input("Seu Nome (Dono do Pedido):", key="novo_autor_pedido")
+            if st.button("Confirmar e Criar Pedido", type="primary"):
+                if autor_input.strip() != "":
+                    criar_novo_pedido(doc_busca, autor_input.strip().lower())
+                    st.success("Pedido enviado para 'Pedido Criado'!")
+                    st.rerun()
+                else:
+                    st.error("Por favor, preencha o seu nome para sabermos quem é o autor do pedido.")
+        else:
+            st.error("Cliente não localizado. Realize o cadastro primeiro.")
+
+st.markdown("---")
+
+# 3. Definição das 8 Colunas do Kanban
+etapas = [
+    "Pedido Criado", "Confirmar Pix", "Faturar Notas", 
+    "Faturar Entregar e Receber", "Cliente vem Buscar", 
+    "Entregas via Tecar", "Transportadora", "Pedido Finalizado"
+]
+
+colunas_quadro = st.columns(len(etapas))
+df_pedidos = carregar_fluxo()
+
+for idx_etapa, etapa in enumerate(etapas):
+    with colunas_quadro[idx_etapa]:
+        st.markdown(f"""
+            <div class='topo-coluna'>
+                <b style='font-size:11px; color:#2d3748;'>{etapa.upper()}</b>
+            </div>
+        """, unsafe_allow_html=True)
+        
+        # Filtra os pedidos se o DataFrame contiver registros válidos
+        if not df_pedidos.empty:
+            pedidos_fase = df_pedidos[(df_pedidos['etapa'] == etapa) & (df_pedidos['id'].notna())]
+        else:
+            pedidos_fase = pd.DataFrame()
             
-        salvar_cliente(pf_cpf, "PF", pf_nome, pf_rg, pf_dt_nasc, pf_orgao)
-                    
+        if not pedidos_fase.empty:
+            for index, row in pedidos_fase.iterrows():
+                nome_exibicao = row['nome'] if row['nome'] else "Cliente não vinculado"
+                st.markdown(f"""
+                    <div class='caixa-pedido'>
+                        <div class='id-pedido'>PEDIDO #{int(row['id'])}</div>
+                        <div class='nome-cliente'>{nome_exibicao}</div>
+                        <div style='font-size:10px; color:#a0aec0;'>Autor: {row['autor']}</div>
+                    </div>
+                """, unsafe_allow_html=True)
+                
+                # Abre o modal de detalhes do pedido correspondente
+                if st.button("🔍 Detalhes", key=f"detalhe_{int(row['id'])}", use_container_width=True):
+                    st.session_state[f"modal_{int(row['id'])}"] = True
+
+                # Modal do Streamlit (st.dialog) acessível para modificação geral
