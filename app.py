@@ -2,7 +2,7 @@ import streamlit as st
 import sqlite3
 import pandas as pd
 
-# 1. BANCO DE DADOS (Nome alterado para iniciar 100% zerado e limpo)
+# 1. BANCO DE DADOS (Oficial e limpo)
 DB_FILE = "sistema_agendor_oficial.db"
 
 def criar_banco():
@@ -163,7 +163,7 @@ st.markdown("""
         box-shadow: 0px 1px 3px rgba(0, 0, 0, 0.08) !important;
         display: block !important;
         transition: transform 0.3s ease, box-shadow 0.3s ease !important;
-        transition-delay: 0.8s !important; /* Zoom só activa após 0,8s parado */
+        transition-delay: 0.8s !important; /* Zoom só ativa após 0,8s parado */
     }
     
     /* Força os textos internos da caixinha a ficarem pretos */
@@ -187,7 +187,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# 3. JANELAS MODAIS FLUTUANTES (Abrem no centro e voltam limpas para a tela inicial)
+# 3. JANELA MODAL FLUTUANTE (Detalhes do pedido ao clicar na caixinha quadrada)
 @st.dialog("⚙️ Detalhes e Ações do Pedido")
 def modal_detalhes_pedido(row):
     st.write(f"**Código:** P-{row['id']}")
@@ -213,7 +213,7 @@ def modal_detalhes_pedido(row):
             st.rerun()
 
 # 4. CABEÇALHO PRINCIPAL (Título e Botões Amarelos Alinhados à Direita)
-col_titulo, col_btn1, col_btn2 = st.columns()
+col_titulo, col_btn1, col_btn2 = st.columns([6, 2, 2])
 
 with col_titulo:
     st.title("📋 Painel de Controle")
@@ -250,18 +250,18 @@ with criar_cad:
                     st.success("Cliente PJ Cadastrado!")
                     st.rerun()
 
-# Fluxo Criar Pedido
+# Fluxo Criar Pedido (Ajustado sem blocos aninhados perigosos)
 with criar_ped:
     st.markdown("<p style='color:black; font-weight:bold;'>Novo Pedido</p>", unsafe_allow_html=True)
     doc_busca = st.text_input("Digite o CPF ou CNPJ do Cliente:")
+    
     if doc_busca:
         cliente_encontrado = buscar_cliente(doc_busca)
         if cliente_encontrado:
-            st.info(f"Cliente identificado: {cliente_encontrado}")
+            st.info(f"Cliente identificado: {cliente_encontrado[0]}")
             if st.button("Confirmar e Criar Pedido", type="primary"):
                 criar_novo_pedido(doc_busca)
                 st.success("Pedido enviado para 'Pedido Criado'!")
                 st.rerun()
         else:
-            st.warning("Cliente não localizado no banco, gerando pedido direto.")
-            if st.button("Criar Pedido Direto", type="primary"):
+            st.warning("Cliente não localizado. Criando pedido direto.")
