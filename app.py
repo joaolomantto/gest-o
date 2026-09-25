@@ -81,7 +81,7 @@ def cadastrar_usuario(usuario, senha, nome, cpf, dt_nasc, telefone):
         c.execute('''
             INSERT INTO usuarios (usuario, senha, nome, cpf, data_nascimento, telefone, autorizado)
             VALUES (?, ?, ?, ?, ?, ?, 'PENDENTE')
-        ''', (usuario.strip().lower(), senha, nome, cpf, dt_nasc, telephone))
+        ''', (usuario.strip().lower(), senha, nome, cpf, dt_nasc, telefone))
         conn.commit()
         sucesso = True
     except Exception:
@@ -267,6 +267,4 @@ if not st.session_state["logado"]:
             if new_nome and new_cpf and new_nasc and new_fone and new_user and new_pass:
                 if new_user.strip().lower() == USER_MASTER:
                     st.error("Este nome de usuário é reservado ao administrador.")
-                else:
-                    cadastrou = cadastrar_usuario(new_user, new_pass, new_nome, new_cpf, new_nasc, new_fone)
-                    if cadastrou:
+                elif cadastrar_usuario(new_user, new_pass, new_nome, new_cpf, new_nasc, new_fone):
