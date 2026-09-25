@@ -65,24 +65,32 @@ def atualizar_pedido(id_ped, nova_etapa, novas_obs):
 
 def carregar_fluxo():
     conn = sqlite3.connect(DB_FILE)
+    # Mudança para LEFT JOIN para garantir que o pedido apareça mesmo se houver erro no cadastro do doc
     df = pd.read_sql_query('''
-        SELECT p.id, p.documento_cliente, p.etapa, p.observacoes, c.nome, c.tipo
+        SELECT p.id, p.documento_cliente, p.etapa, p.observacoes, IFNULL(c.nome, 'Cliente s/ Cadastro') as nome, IFNULL(c.tipo, 'PF') as tipo
         FROM pedidos p
-        JOIN clientes c ON p.documento_cliente = c.documento
+        LEFT JOIN clientes c ON p.documento_cliente = c.documento
     ''', conn)
     conn.close()
     return df
 
 criar_banco()
 
-# Inicialização do controle de cliques para abrir detalhes e fechar voltando à tela inicial
+# Lista global com as 8 etapas solicitadas
+ETAPAS_GLOBAL = [
+    "Pedido Criado", "Confirmar Pix", "Faturar Notas", 
+    "Faturar Entregar e Receber", "Cliente vem Buscar", 
+    "Entregas via Tecar", "Transportadora", "Pedido Finalizado"
+]
+
+# Inicialização de controle de janelas na memória do navegador
 if "pedido_selecionado" not in st.session_state:
     st.session_state.pedido_selecionado = None
 
-# 2. Interface Avançada e Design Minimalista
+# 2. Interface Estilizada e Configuração de Cores (Design Minimalista Branco/Preto)
 st.set_page_config(layout="wide", page_title="Gestão de Fluxo", page_icon="📋")
 
-# Estilização Inteligente em CSS (Fundo Branco, Linhas e Caixinhas Quadradas com Zoom de 0.8s)
+# Aplicação de CSS Inteligente - Forçando Colunas Fixas de cima até embaixo
 st.markdown("""
     <style>
     /* Força o plano de fundo geral para BRANCO absoluto */
@@ -90,7 +98,7 @@ st.markdown("""
         background-color: #ffffff !important;
     }
     
-    /* Força todos os textos normais do sistema para PRETO */
+    /* Força todos os textos para PRETO */
     h1, h2, h3, h4, h5, h6, p, span, label, li, div, .stMarkdown, p font {
         color: #000000 !important;
     }
@@ -105,7 +113,7 @@ st.markdown("""
         font-weight: bold !important;
     }
     
-    /* Força as divisões de colunas irem de cima até embaixo */
+    /* Força as divisões de colunas irem de cima até embaixo (Linhas divisórias contínuas) */
     div[data-testid="stHorizontalBlock"] {
         align-items: stretch !important;
         background-color: #ffffff !important;
@@ -114,14 +122,15 @@ st.markdown("""
     div[data-testid="column"] {
         padding-right: 10px !important;
         padding-left: 10px !important;
-        border-right: 1px solid #cccccc !important; /* Divisa cinza nítida */
+        border-right: 1px solid #cccccc !important; /* Linha de divisa cinza */
+        min-height: 75vh !important; /* Mantém a linha descendo pela tela */
     }
     
     div[data-testid="column"]:last-child {
         border-right: none !important;
     }
     
-    /* CORREÇÃO DO ALINHAMENTO: Força altura idêntica para todas as caixas de título */
+    /* CAIXA DE TÍTULO SUPERIOR: Mantém o alinhamento horizontal fixo */
     .topo-coluna {
         background-color: #ffffff;
         border: 1px solid #000000;
@@ -129,7 +138,7 @@ st.markdown("""
         border-radius: 4px;
         text-align: center;
         margin-bottom: 20px;
-        height: 58px; /* Altura fixa ideal para alinhar caixas maiores */
+        height: 58px;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -143,7 +152,7 @@ st.markdown("""
         line-height: 1.2;
     }
     
-    /* CONFIGURAÇÃO DA CAIXINHA QUADRADA (CSS aplicado diretamente sobre o botão nativo) */
+    /* CAIXINHA QUADRADA DO PEDIDO COM ZOOM DELAY DE 0,8s */
     div.element-container button[data-testid="stBaseButton-secondary"] {
         background-color: #ffffff !important;
         border: 1px solid #babcbf !important;
@@ -157,10 +166,9 @@ st.markdown("""
         box-shadow: 0px 1px 3px rgba(0, 0, 0, 0.08) !important;
         display: block !important;
         transition: transform 0.3s ease, box-shadow 0.3s ease !important;
-        transition-delay: 0.8s !important; /* Só aplica o zoom se o mouse ficar parado por 0,8s */
+        transition-delay: 0.8s !important; /* Zoom com delay de 0.8s */
     }
     
-    /* Garante textos pretos nas caixinhas */
     div.element-container button[data-testid="stBaseButton-secondary"] p {
         color: #000000 !important;
         font-weight: bold !important;
@@ -168,7 +176,7 @@ st.markdown("""
     }
     
     div.element-container button[data-testid="stBaseButton-secondary"]:hover {
-        transform: scale(1.06) !important; /* Pequeno zoom de destaque */
+        transform: scale(1.06) !important;
         box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.15) !important;
         background-color: #ffffff !important;
     }
@@ -232,7 +240,12 @@ with criar_ped:
                 st.success("Pedido enviado para 'Pedido Criado'!")
                 st.rerun()
         else:
-            st.error("Cliente não localizado. Realize o cadastro primeiro.")
+            # CORREÇÃO: Cria o pedido direto mesmo se o cliente ainda não tiver cadastro
+            st.warning("Cliente não localizado no banco, mas criando pedido diretamente.")
+            if st.button("Criar Pedido Direto", type="primary"):
+                criar_novo_pedido(doc_busca)
+                st.success("Pedido criado direto na primeira coluna!")
+                st.rerun()
 
 # ---- JANELA DE DETALHES ----
 if st.session_state.pedido_selecionado is not None:
@@ -249,16 +262,6 @@ if st.session_state.pedido_selecionado is not None:
         if arquivo:
             st.caption(f"📎 Arquivo anexado: {arquivo.name}")
             
-        etapas_lista = ["Pedido Criado", "Confirmar Pix", "Faturar Notas", "Faturar Entregar e Receber", "Cliente vem Buscar", "Entregas via Tecar", "Transportadora", "Pedido Finalizado"]
-        nova_fase = st.selectbox("Mover manualmente para:", etapas_lista, index=etapas_lista.index(row['etapa']), key=f"fase_edit_{row['id']}")
+        nova_fase = st.selectbox("Mover manualmente para:", ETAPAS_GLOBAL, index=ETAPAS_GLOBAL.index(row['etapa']), key=f"fase_edit_{row['id']}")
         
         col_salvar, col_cancelar = st.columns(2)
-        
-        # Correção definitiva aqui: botões posicionados de forma direta
-        if col_salvar.button("💾 Salvar Alterações e Fechar", type="primary", key=f"save_btn_{row['id']}"):
-            atualizar_pedido(row['id'], nova_fase, novas_obs)
-            st.session_state.pedido_selecionado = None
-            st.rerun()
-            
-        if col_cancelar.button("❌ Cancelar e Sair", key=f"cancel_btn_{row['id']}"):
-            st.session_state.pedido_selecionado = None
