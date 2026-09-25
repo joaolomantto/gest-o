@@ -18,7 +18,6 @@ def criar_banco():
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
     
-    # Garante a criação segura das tabelas base de clientes e pedidos
     c.execute('''
         CREATE TABLE IF NOT EXISTS clientes (
             documento TEXT PRIMARY KEY,
@@ -39,10 +38,11 @@ def criar_banco():
         )
     ''')
     
-    # CORREÇÃO COMPLETA: Remove qualquer estrutura de tabela antiga para evitar erros de coluna ou chave primária
-    c.execute("DROP TABLE IF EXISTS usuarios")
+    try:
+        c.execute("SELECT usuario FROM usuarios LIMIT 1")
+    except sqlite3.OperationalError:
+        c.execute("DROP TABLE IF EXISTS usuarios")
         
-    # Recria a tabela de usuários com a estrutura perfeita e atualizada
     c.execute('''
         CREATE TABLE IF NOT EXISTS usuarios (
             usuario TEXT PRIMARY KEY,
@@ -55,7 +55,6 @@ def criar_banco():
         )
     ''')
     
-    # Atualização de colunas auxiliares na tabela de pedidos
     try:
         c.execute("ALTER TABLE pedidos ADD COLUMN arquivo_caminho TEXT DEFAULT ''")
     except sqlite3.OperationalError:
@@ -92,7 +91,7 @@ def checar_status_usuario(usuario):
     res = c.fetchone()
     conn.close()
     if res:
-        return res[0]
+        return res
     return "PENDENTE"
 
 def realizar_login(usuario, senha):
@@ -108,7 +107,7 @@ def realizar_login(usuario, senha):
     conn.close()
     
     if res:
-        return {"usuario": usuario_limpo, "nome": res[0], "status": res[1]}
+        return {"usuario": usuario_limpo, "nome": res, "status": res}
     return None
 
 def listar_usuarios_pendentes():
@@ -255,10 +254,17 @@ if not st.session_state["logado"]:
             new_user = st.text_input("Escolha um Nome de Usuário (Para o login):")
             new_pass = st.text_input("Defina sua Senha de Acesso:", type="password")
             
-            if st.form_submit_button("🚀 Cadastrar e Solicitar Permissão", use_container_width=True):
-                if not (new_nome and new_cpf and new_nasc and new_fone and new_user and new_pass):
+            # CORREÇÃO DEFINITIVA: Remoção completa de condicionais aninhadas perigosas
+            enviar_dados = st.form_submit_button("🚀 Cadastrar e Solicitar Permissão", use_container_width=True)
+            
+            if enviar_dados:
+                campos_preenchidos = bool(new_nome and new_cpf and new_nasc and new_fone and new_user and new_pass)
+                usuario_valido = bool(new_user.strip().lower() != USER_MASTER)
+                
+                if not campos_preenchidos:
                     st.error("Preencha todos os campos do formulário para concluir.")
-                elif new_user.strip().lower() == USER_MASTER:
+                elif not usuario_valido:
                     st.error("Este nome de usuário é reservado ao administrador.")
                 else:
-                    if cadastrar_usuario(new_user, new_pass, new_nome, new_cpf, new_nasc, new_fone):
+                    resultado_banco = cadastrar_usuario(new_user, new_pass, new_nome, new_cpf, new_nasc, new_fone)
+                    if resultado_banco:
