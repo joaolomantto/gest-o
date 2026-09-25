@@ -256,6 +256,6 @@ if st.session_state.pedido_selecionado is not None:
         with col_salvar:
             if st.button("💾 Salvar Alterações e Fechar", type="primary", key=f"save_btn_{row['id']}"):
                 atualizar_pedido(row['id'], nova_fase, novas_obs)
-                st.session_state.pedido_selecionado = None # Reseta para voltar à tela inicial
+                st.session_state.pedido_selecionado = None  # Reseta para voltar à tela inicial
                 st.rerun()
         with col_cancelar:
