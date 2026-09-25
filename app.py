@@ -262,9 +262,9 @@ if not st.session_state["logado"]:
         new_pass = st.text_input("Defina sua Senha de Acesso:", type="password", key="reg_pass")
         
         if st.button("🚀 Cadastrar e Solicitar Permissão", use_container_width=True, type="primary"):
-            if not (new_nome and new_cpf and new_nasc and new_fone and new_user and new_pass):
-                st.error("Preencha todos os campos do formulário para concluir.")
-            elif new_user.strip().lower() == USER_MASTER:
-                st.error("Este nome de usuário é reservado ao administrador.")
-            else:
-                if cadastrar_usuario(new_user, new_pass, new_nome, new_cpf, new_nasc, new_fone):
+            if new_nome and new_cpf and new_nasc and new_fone and new_user and new_pass:
+                if new_user.strip().lower() == USER_MASTER:
+                    st.error("Este nome de usuário é reservado ao administrador.")
+                else:
+                    executa_cadastro = cadastrar_usuario(new_user, new_pass, new_nome, new_cpf, new_nasc, new_fone)
+                    if executa_cadastro:
