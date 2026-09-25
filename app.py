@@ -177,7 +177,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-col_titulo, col_btn1, col_btn2 = st.columns([6, 2, 2])
+col_titulo, col_btn1, col_btn2 = st.columns()
 
 with col_titulo:
     st.title("📋 Painel de Controle")
@@ -264,7 +264,6 @@ for idx_etapa, etapa in enumerate(etapas):
             for index, row in pedidos_fase.iterrows():
                 nome_exibicao = row['nome'] if row['nome'] else "Cliente não vinculado"
                 
-                # REESTRUTURAÇÃO NATIVA: Substituído o HTML complexo por blocos nativos empilhados
                 with st.container(border=True):
                     st.markdown(f"**PEDIDO #{int(row['id'])}**")
                     st.write(f"Cliente: {nome_exibicao}")
@@ -276,3 +275,6 @@ for idx_etapa, etapa in enumerate(etapas):
         else:
             st.markdown("<p style='font-size:11px; color:#a0aec0; text-align:center;'>Nenhum pedido</p>", unsafe_allow_html=True)
 
+# 4. Modal de Detalhes Estável - Executado de forma limpa fora do loop do Kanban
+if st.session_state.pedido_selecionado_id is not None:
+    @st.dialog("Detalhes do Pedido", width="large")
