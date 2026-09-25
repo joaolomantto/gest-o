@@ -40,7 +40,7 @@ def criar_banco():
     except sqlite3.OperationalError:
         pass
 
-    # ATUALIZAÇÃO: Adiciona a coluna de autor se ela não existir de forma segura
+    # Adiciona a coluna de autor se ela não existir de forma segura
     try:
         c.execute("ALTER TABLE pedidos ADD COLUMN autor TEXT DEFAULT 'Não informado'")
     except sqlite3.OperationalError:
@@ -67,7 +67,6 @@ def salvar_cliente(doc, tipo, nome, rg=None, dt_nasc=None, orgao=None, dt_fund=N
     conn.commit()
     conn.close()
 
-# ATUALIZAÇÃO: Agora recebe também quem está criando o pedido
 def criar_novo_pedido(doc, autor):
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
@@ -173,7 +172,8 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-col_titulo, col_btn1, col_btn2 = st.columns()
+# CORREÇÃO AQUI: Passando as proporções corretas (3 colunas) para eliminar o erro
+col_titulo, col_btn1, col_btn2 = st.columns([6, 2, 2])
 
 with col_titulo:
     st.title("📋 Painel de Controle")
@@ -216,11 +216,9 @@ with criar_ped:
         cliente_encontrado = buscar_cliente(doc_busca)
         if cliente_encontrado:
             st.info(f"Cliente identificado: {cliente_encontrado}")
-            # ATUALIZAÇÃO: Campo obrigatório para salvar quem é o dono do pedido
             autor_input = st.text_input("Seu Nome (Dono do Pedido):", key="novo_autor_pedido")
             if st.button("Confirmar e Criar Pedido", type="primary"):
                 if autor_input.strip() != "":
-                    # Transforma o nome digitado em letras minúsculas tirando espaços para evitar erros de digitação
                     criar_novo_pedido(doc_busca, autor_input.strip().lower())
                     st.success("Pedido enviado para 'Pedido Criado'!")
                     st.rerun()
@@ -263,7 +261,6 @@ for idx_etapa, etapa in enumerate(etapas):
             with st.popover("⚙️ Detalhes / Opções", use_container_width=True):
                 st.write(f"**Pedido:** P-{row['id']}")
                 st.write(f"**Cliente:** {row['nome']} ({row['documento_cliente']})")
-                # Mostra de forma clara na tela quem criou esse bloco
                 st.write(f"👤 **Autor do Pedido:** {row['autor'].title()}")
                 st.info(row['observacoes'] if row['observacoes'] else "Sem informações adicionadas.")
                 
@@ -279,3 +276,8 @@ for idx_etapa, etapa in enumerate(etapas):
                             key=f"dl_{row['id']}",
                             use_container_width=True
                         )
+                elif row['arquivo_caminho']:
+                    st.warning("⚠️ Arquivo registrado, mas não localizado no servidor.")
+                
+                st.markdown("---")
+                
