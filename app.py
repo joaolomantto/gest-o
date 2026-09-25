@@ -177,7 +177,8 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-col_titulo, col_btn1, col_btn2 = st.columns()
+# CORREÇÃO CRÍTICA: Definida as proporções estáveis da linha de cabeçalho
+col_titulo, col_btn1, col_btn2 = st.columns([6, 2, 2])
 
 with col_titulo:
     st.title("📋 Painel de Controle")
@@ -275,4 +276,4 @@ for idx_etapa, etapa in enumerate(etapas):
         else:
             st.markdown("<p style='font-size:11px; color:#a0aec0; text-align:center;'>Nenhum pedido</p>", unsafe_allow_html=True)
 
-# 4. FUNÇÃO DO MODAL DECLARADA TOTALMENTE FORA E LIVRE DE BLOCOS CONDICIONAIS (Resolução definitiva)
+# 4. Função do Modal declarada fora e de forma estável na raiz
