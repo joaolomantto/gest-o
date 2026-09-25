@@ -167,7 +167,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-col_titulo, col_btn1, col_btn2 = st.columns()
+col_titulo, col_btn1, col_btn2 = st.columns([6, 2, 2])
 
 with col_titulo:
     st.title("📋 Painel de Controle")
@@ -247,7 +247,7 @@ for idx_etapa, etapa in enumerate(etapas):
                 </div>
             """, unsafe_allow_html=True)
             
-            # Detalhes do pedido (Botões rápidos externos removidos daqui)
+            # Detalhes do pedido (Popover)
             with st.popover("⚙️ Detalhes / Opções", use_container_width=True):
                 st.write(f"**Pedido:** P-{row['id']}")
                 st.write(f"**Cliente:** {row['nome']} ({row['documento_cliente']})")
@@ -264,6 +264,7 @@ for idx_etapa, etapa in enumerate(etapas):
                 nova_fase = st.selectbox("Mover para etapa:", etapas, index=etapas.index(row['etapa']), key=f"fase_{row['id']}")
                 novas_obs = st.text_area("Observações do pedido:", value=row['observacoes'], key=f"obs_{row['id']}")
                 
+                # Colunas internas para alinhar Salvar e Excluir
                 col_salvar, col_excluir = st.columns(2)
                 
                 with col_salvar:
@@ -276,5 +277,3 @@ for idx_etapa, etapa in enumerate(etapas):
                         
                         atualizar_pedido(row['id'], nova_fase, novas_obs, caminho_salvo)
                         st.rerun()
-                        
-                with col_excluir:
