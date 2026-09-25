@@ -163,7 +163,7 @@ with st.sidebar:
                 dados_user = verificar_login(user_login, senha_login)
                 if dados_user:
                     st.session_state.usuario = user_login.strip().lower()
-                    st.session_state.usuario_nome = dados_user[0] if isinstance(dados_user, tuple) else dados_user
+                    st.session_state.usuario_nome = dados_user if isinstance(dados_user, tuple) else dados_user
                     st.success(f"Bem-vindo, {st.session_state.usuario_nome}!")
                     st.rerun()
                 else:
@@ -254,7 +254,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# CORREÇÃO DA DIVISÃO DE COLUNAS: Restaurando os pesos originais do cabeçalho [6, 2, 2]
+# Divisão correta de colunas para o topo
 col_titulo, col_btn1, col_btn2 = st.columns([6, 2, 2])
 
 with col_titulo:
@@ -271,7 +271,6 @@ with criar_cad:
     aba_pf, aba_pj = st.tabs(["PESSOA FÍSICA", "PESSOA JURÍDICA"])
     
     with aba_pf:
-        # CORREÇÃO: Utilizando st.form estruturado para reter e processar os dados com segurança
         with st.form("form_novo_pf", clear_on_submit=True):
             pf_nome = st.text_input("Nome:")
             pf_cpf = st.text_input("CPF:")
@@ -279,4 +278,6 @@ with criar_cad:
             pf_dt_nasc = st.text_input("Data de Nascimento (DD/MM/AAAA):")
             pf_orgao = st.text_input("Órgão Emissor:")
             
-            if st.form_submit_button("Salvar Cliente Física"):
+            submit_pf = st.form_submit_button("Salvar Cliente Física")
+            if submit_pf:
+                if pf_nome.strip() and pf_cpf.strip():
