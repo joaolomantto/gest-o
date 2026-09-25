@@ -75,44 +75,45 @@ def carregar_fluxo():
 
 criar_banco()
 
-# Lista global estável com as 8 etapas solicitadas
-ETAPAS_GLOBAL = [
-    "Pedido Criado", "Confirmar Pix", "Faturar Notas", 
-    "Faturar Entregar e Receber", "Cliente vem Buscar", 
-    "Entregas via Tecar", "Transportadora", "Pedido Finalizado"
-]
-
-# Inicialização de variáveis de controle de janelas na memória do navegador
+# Inicialização do controle de cliques para abrir detalhes e fechar voltando à tela inicial
 if "pedido_selecionado" not in st.session_state:
     st.session_state.pedido_selecionado = None
-if "aba_aberta" not in st.session_state:
-    st.session_state.aba_aberta = None
 
-# 2. Interface Estilizada e Configuração de Cores (Design Minimalista Branco/Preto)
+# 2. Interface Avançada e Design Minimalista
 st.set_page_config(layout="wide", page_title="Gestão de Fluxo", page_icon="📋")
 
-# Aplicação de CSS Inteligente - Sem quebrar cliques e forçando o Tema Claro Rígido
+# Estilização Inteligente em CSS (Fundo Branco, Linhas e Caixinhas Quadradas com Zoom de 0.8s)
 st.markdown("""
     <style>
-    /* Força o fundo de toda a página para BRANCO Puro */
+    /* Força o plano de fundo geral para BRANCO absoluto */
     .stApp, [data-testid="stAppViewContainer"], [data-testid="stHeader"], [data-testid="stMainBlockContainer"] {
         background-color: #ffffff !important;
     }
     
-    /* Força todas as fontes, títulos e labels para PRETO */
-    h1, h2, h3, h4, h5, h6, p, span, label, li, div, .stMarkdown {
+    /* Força todos os textos normais do sistema para PRETO */
+    h1, h2, h3, h4, h5, h6, p, span, label, li, div, .stMarkdown, p font {
         color: #000000 !important;
     }
+
+    div[data-testid="stExpander"] {
+        background-color: #FFD700 !important;
+        border: 1px solid #E6C200 !important;
+        border-radius: 4px !important;
+    }
+    div[data-testid="stExpander"] p {
+        color: #000000 !important;
+        font-weight: bold !important;
+    }
     
-    /* Configuração e linhas divisórias verticais cinzas entre as abas */
+    /* Força as divisões de colunas irem de cima até embaixo */
     div[data-testid="stHorizontalBlock"] {
         align-items: stretch !important;
         background-color: #ffffff !important;
     }
     
     div[data-testid="column"] {
-        padding-right: 8px !important;
-        padding-left: 8px !important;
+        padding-right: 10px !important;
+        padding-left: 10px !important;
         border-right: 1px solid #cccccc !important; /* Divisa cinza nítida */
     }
     
@@ -120,15 +121,15 @@ st.markdown("""
         border-right: none !important;
     }
     
-    /* ALINHAMENTO DAS ETAPAS DO TOPO: Garante tamanho fixo idêntico para todas as caixas */
+    /* CORREÇÃO DO ALINHAMENTO: Força altura idêntica para todas as caixas de título */
     .topo-coluna {
         background-color: #ffffff;
-        border: 1px solid #000000; /* Contorno preto fino */
-        padding: 6px 4px;
+        border: 1px solid #000000;
+        padding: 8px 4px;
         border-radius: 4px;
         text-align: center;
         margin-bottom: 20px;
-        height: 58px; /* Altura ideal para alinhar textos de duas linhas */
+        height: 58px; /* Altura fixa ideal para alinhar caixas maiores */
         display: flex;
         align-items: center;
         justify-content: center;
@@ -142,10 +143,10 @@ st.markdown("""
         line-height: 1.2;
     }
     
-    /* TRANSFORMANDO O BOTÃO DO PEDIDO NA CAIXINHA QUADRADA COM ZOOM DELAY DE 0,8s */
+    /* CONFIGURAÇÃO DA CAIXINHA QUADRADA (CSS aplicado diretamente sobre o botão nativo) */
     div.element-container button[data-testid="stBaseButton-secondary"] {
         background-color: #ffffff !important;
-        border: 1px solid #babcbf !important; /* Contorno cinza do card */
+        border: 1px solid #babcbf !important;
         border-top: 4px solid #FFD700 !important; /* Detalhe amarelo superior */
         border-radius: 4px !important;
         padding: 12px !important;
@@ -156,10 +157,10 @@ st.markdown("""
         box-shadow: 0px 1px 3px rgba(0, 0, 0, 0.08) !important;
         display: block !important;
         transition: transform 0.3s ease, box-shadow 0.3s ease !important;
-        transition-delay: 0.8s !important; /* Delay exato de 0,8 segundos */
+        transition-delay: 0.8s !important; /* Só aplica o zoom se o mouse ficar parado por 0,8s */
     }
     
-    /* Texto interno da caixinha em preto */
+    /* Garante textos pretos nas caixinhas */
     div.element-container button[data-testid="stBaseButton-secondary"] p {
         color: #000000 !important;
         font-weight: bold !important;
@@ -167,98 +168,94 @@ st.markdown("""
     }
     
     div.element-container button[data-testid="stBaseButton-secondary"]:hover {
-        transform: scale(1.06) !important; /* Efeito de pequeno zoom */
+        transform: scale(1.06) !important; /* Pequeno zoom de destaque */
         box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.15) !important;
         background-color: #ffffff !important;
     }
-    
-    /* Estilo dos botões amarelos fixos superiores do topo direito */
-    div.element-container button[data-testid="stBaseButton-primary"] {
-        background-color: #FFD700 !important;
-        color: #000000 !important;
-        font-weight: bold !important;
-        border: 1px solid #E6C200 !important;
-        width: 100% !important;
-    }
-    div.element-container button[data-testid="stBaseButton-primary"]:hover {
-        background-color: #E6C200 !important;
-        color: #000000 !important;
-    }
-    
-    /* Ajustes para inputs em modo claro */
-    input {
+
+    input, textarea, select {
         color: #000000 !important;
         background-color: #ffffff !important;
     }
     </style>
 """, unsafe_allow_html=True)
 
-# Layout do Cabeçalho principal organizando título e botões
+# Layout do Cabeçalho
 col_titulo, col_btn1, col_btn2 = st.columns([6, 2, 2])
 
 with col_titulo:
     st.title("📋 Painel de Controle")
 
 with col_btn1:
-    if st.button("👤 CRIAR CADASTRO", type="primary", key="main_btn_cad"):
-        st.session_state.aba_aberta = "cadastro"
-        st.session_state.pedido_selecionado = None
-        st.rerun()
+    criar_cad = st.expander("👤 CRIAR CADASTRO")
 
 with col_btn2:
-    if st.button("📦 CRIAR PEDIDO", type="primary", key="main_btn_ped"):
-        st.session_state.aba_aberta = "pedido"
-        st.session_state.pedido_selecionado = None
-        st.rerun()
+    criar_ped = st.expander("📦 CRIAR PEDIDO")
 
-# ---- JANELA DINÂMICA: CRIAR CADASTRO ----
-if st.session_state.aba_aberta == "cadastro":
-    with st.container(border=True):
-        st.markdown("### 👤 Cadastro de Novo Cliente")
-        tipo_pess = st.radio("Tipo de Pessoa", ["PESSOA FÍSICA", "PESSOA JURÍDICA"], horizontal=True)
-        
-        with st.form("form_cliente", clear_on_submit=True):
-            if tipo_pess == "PESSOA FÍSICA":
-                nome = st.text_input("Nome:")
-                cpf = st.text_input("CPF:")
-                rg = st.text_input("RG:")
-                dt_nasc = st.text_input("Data de Nascimento (DD/MM/AAAA):")
-                orgao = st.text_input("Órgão Emissor:")
-                if st.form_submit_button("Salvar e Voltar"):
-                    if nome and cpf:
-                        salvar_cliente(cpf, "PF", nome, rg, dt_nasc, orgao)
-                        st.session_state.aba_aberta = None  # Reseta para voltar à tela inicial
-                        st.rerun()
-            else:
-                nome_emp = st.text_input("Nome da Empresa:")
-                cnpj = st.text_input("CNPJ:")
-                dt_fund = st.text_input("Data de Fundação (DD/MM/AAAA):")
-                if st.form_submit_button("Salvar e Voltar"):
-                    if nome_emp and cnpj:
-                        salvar_cliente(cnpj, "PJ", nome_emp, dt_fund=dt_fund)
-                        st.session_state.aba_aberta = None  # Reseta para voltar à tela inicial
-                        st.rerun()
-        if st.button("❌ Cancelar e Sair", key="btn_cancelar_cad"):
-            st.session_state.aba_aberta = None
-            st.rerun()
-
-# ---- JANELA DINÂMICA: CRIAR PEDIDO ----
-if st.session_state.aba_aberta == "pedido":
-    with st.container(border=True):
-        st.markdown("### 📦 Abertura de Novo Pedido")
-        doc_busca = st.text_input("Digite o CPF ou CNPJ do Cliente cadastrado:")
-        if doc_busca:
-            cliente_encontrado = buscar_cliente(doc_busca)
-            if cliente_encontrado:
-                st.success(f"Cliente Identificado: {cliente_encontrado[0]}")
-                if st.button("Confirmar Pedido e Voltar", type="primary", key="btn_conf_ped"):
-                    criar_novo_pedido(doc_busca)
-                    st.session_state.aba_aberta = None  # Reseta para voltar à tela inicial
+# Fluxo Criar Cadastro
+with criar_cad:
+    st.markdown("<p style='color:black; font-weight:bold;'>Novo Cliente</p>", unsafe_allow_html=True)
+    tipo_pess = st.radio("Tipo de Pessoa", ["PESSOA FÍSICA", "PESSOA JURÍDICA"], horizontal=True)
+    
+    with st.form("form_cliente", clear_on_submit=True):
+        if tipo_pess == "PESSOA FÍSICA":
+            nome = st.text_input("Nome:")
+            cpf = st.text_input("CPF:")
+            rg = st.text_input("RG:")
+            dt_nasc = st.text_input("Data de Nascimento:")
+            orgao = st.text_input("Órgão Emissor:")
+            if st.form_submit_button("Salvar Cliente"):
+                if nome and cpf:
+                    salvar_cliente(cpf, "PF", nome, rg, dt_nasc, orgao)
+                    st.success("Cliente PF Cadastrado!")
                     st.rerun()
-            else:
-                st.error("Cliente não localizado. Realize o cadastro primeiro.")
-        if st.button("❌ Cancelar e Sair", key="btn_cancelar_ped"):
-            st.session_state.aba_aberta = None
-            st.rerun()
+        else:
+            nome_emp = st.text_input("Nome da Empresa:")
+            cnpj = st.text_input("CNPJ:")
+            dt_fund = st.text_input("Data de Fundação:")
+            if st.form_submit_button("Salvar Empresa"):
+                if nome_emp and cnpj:
+                    salvar_cliente(cnpj, "PJ", nome_emp, dt_fund=dt_fund)
+                    st.success("Cliente PJ Cadastrado!")
+                    st.rerun()
 
-# ---- JANELA DINÂMICA: DETALHES DO PEDIDO SELECIONADO (DENTRO DA CAIXA) ----
+# Fluxo Criar Pedido
+with criar_ped:
+    st.markdown("<p style='color:black; font-weight:bold;'>Novo Pedido</p>", unsafe_allow_html=True)
+    doc_busca = st.text_input("Digite o CPF ou CNPJ do Cliente:")
+    if doc_busca:
+        cliente_encontrado = buscar_cliente(doc_busca)
+        if cliente_encontrado:
+            st.info(f"Cliente identificado: {cliente_encontrado[0]}")
+            if st.button("Confirmar e Criar Pedido", type="primary"):
+                criar_novo_pedido(doc_busca)
+                st.success("Pedido enviado para 'Pedido Criado'!")
+                st.rerun()
+        else:
+            st.error("Cliente não localizado. Realize o cadastro primeiro.")
+
+# ---- JANELA DE DETALHES (Aparece quando clica na caixinha e fecha voltando para a tela inicial) ----
+if st.session_state.pedido_selecionado is not None:
+    row = st.session_state.pedido_selecionado
+    with st.container(border=True):
+        st.markdown(f"### ⚙️ Detalhes e Informações do Pedido P-{row['id']}")
+        st.write(f"**Cliente:** {row['nome']} | **Documento:** {row['documento_cliente']} ({row['tipo']})")
+        st.markdown("---")
+        
+        st.info(row['observacoes'] if row['observacoes'] else "Nenhuma informação adicionada.")
+        novas_obs = st.text_area("Adicionar Informações / Histórico Manual:", value=row['observacoes'], key=f"obs_edit_{row['id']}")
+        
+        arquivo = st.file_uploader("Adicionar arquivos:", key=f"file_edit_{row['id']}")
+        if arquivo:
+            st.caption(f"📎 Arquivo anexado: {arquivo.name}")
+            
+        etapas_lista = ["Pedido Criado", "Confirmar Pix", "Faturar Notas", "Faturar Entregar e Receber", "Cliente vem Buscar", "Entregas via Tecar", "Transportadora", "Pedido Finalizado"]
+        nova_fase = st.selectbox("Mover manualmente para:", etapas_lista, index=etapas_lista.index(row['etapa']), key=f"fase_edit_{row['id']}")
+        
+        col_salvar, col_cancelar = st.columns(2)
+        with col_salvar:
+            if st.button("💾 Salvar Alterações e Fechar", type="primary", key=f"save_btn_{row['id']}"):
+                atualizar_pedido(row['id'], nova_fase, novas_obs)
+                st.session_state.pedido_selecionado = None # Reseta para voltar à tela inicial
+                st.rerun()
+        with col_cancelar:
