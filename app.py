@@ -173,7 +173,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-col_titulo, col_btn1, col_btn2 = st.columns(3)
+col_titulo, col_btn1, col_btn2 = st.columns([6, 2, 2])
 
 with col_titulo:
     st.title("📋 Painel de Controle")
@@ -264,7 +264,7 @@ for idx_etapa, etapa in enumerate(etapas):
                 st.write(f"👤 **Autor do Pedido:** {row['autor'].title()}")
                 st.info(row['observacoes'] if row['observacoes'] else "Sem informações adicionadas.")
                 
-                # Visualizador interno de arquivos na própria página
+                # ATUALIZAÇÃO: Visualizador interno de arquivos na própria página
                 if row['arquivo_caminho'] and os.path.exists(row['arquivo_caminho']):
                     nome_arquivo = os.path.basename(row['arquivo_caminho'])
                     extensao = nome_arquivo.split('.')[-1].lower()
@@ -274,8 +274,7 @@ for idx_etapa, etapa in enumerate(etapas):
                     with open(row['arquivo_caminho'], "rb") as f:
                         dados_arquivo = f.read()
                     
+                    # Se for PDF, renderiza em um iframe interativo embutido
                     if extensao == "pdf":
                         base64_pdf = base64.b64encode(dados_arquivo).decode('utf-8')
                         pdf_display = f'<iframe src="data:application/pdf;base64,{base64_pdf}" width="100%" height="400" type="application/pdf"></iframe>'
-                        st.markdown(pdf_display, unsafe_allow_html=True)
-                    elif extensao in ["png", "jpg", "jpeg", "webp"]:
