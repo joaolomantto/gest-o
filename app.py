@@ -164,8 +164,8 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Layout do Cabeçalho
-col_titulo, col_btn1, col_btn2 = st.columns()
+# Layout do Cabeçalho - CORREÇÃO: Definido 3 colunas fixas para evitar o TypeError
+col_titulo, col_btn1, col_btn2 = st.columns(3)
 
 with col_titulo:
     st.title("📋 Painel de Controle")
@@ -264,7 +264,6 @@ df_pedidos = carregar_fluxo()
 
 for idx_etapa, etapa_nome in enumerate(etapas):
     with colunas_quadro[idx_etapa]:
-        # Caixa de título montada de forma estável
         texto_html_topo = f"<div class='topo-coluna'><span class='texto-topo'>{etapa_nome.upper()}</span></div>"
         st.markdown(texto_html_topo, unsafe_allow_html=True)
         
