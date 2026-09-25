@@ -84,43 +84,44 @@ if "aba_aberta" not in st.session_state:
 # 2. Interface Estilizada Dinâmica
 st.set_page_config(layout="wide", page_title="Gestão de Fluxo", page_icon="📋")
 
-# Injeção de CSS para forçar Fundo Branco e Textos/Linhas Pretos ou Cinza Escuros
+# Injeção de CSS para Corrigir Espaçamento e Forçar Fundo Branco e Textos Pretos
 st.markdown("""
     <style>
-    /* Força a cor do plano de fundo geral do aplicativo para BRANCO puro e texto para PRETO */
-    .stApp {
+    /* Força o fundo geral para BRANCO puro e texto para PRETO */
+    .stApp, [data-testid="stAppViewContainer"] {
         background-color: #ffffff !important;
         color: #000000 !important;
     }
     
-    /* Garante que os títulos principais fiquem sempre pretos */
+    /* Garante visibilidade preta para cabeçalhos e parágrafos */
     h1, h2, h3, h4, h5, h6, p, span, label {
         color: #000000 !important;
     }
     
-    /* Configuração e linha divisória das colunas de cima até embaixo (Cinza Bem Definido) */
+    /* Configuração e linha divisória das colunas (estilo Agendor) */
     div[data-testid="stHorizontalBlock"] {
         align-items: stretch !important;
+        background-color: #ffffff !important;
     }
     
     div[data-testid="column"] {
-        padding-right: 10px !important;
-        padding-left: 10px !important;
-        border-right: 1px solid #cccccc !important; /* Linha cinza nítida entre colunas */
+        padding-right: 8px !important;
+        padding-left: 8px !important;
+        border-right: 1px solid #d1d5db !important; /* Traço cinza nítido */
     }
     
     div[data-testid="column"]:last-child {
         border-right: none !important;
     }
     
-    /* Alinhamento fixo das caixas de etapas superiores */
+    /* Alinhamento perfeito das caixas de etapas superiores */
     .topo-coluna {
         background-color: #ffffff;
-        border: 1px solid #000000; /* Borda preta fina para destacar a etapa */
+        border: 1px solid #a1a1aa;
         padding: 8px 4px;
         border-radius: 4px;
         text-align: center;
-        margin-bottom: 20px;
+        margin-bottom: 15px;
         height: 55px;
         display: flex;
         align-items: center;
@@ -131,15 +132,15 @@ st.markdown("""
     .texto-topo {
         font-size: 10px;
         font-weight: bold;
-        color: #000000 !important; /* Texto da etapa em preto puro */
+        color: #000000 !important;
         line-height: 1.2;
     }
     
-    /* Transformando a Caixinha Quadrada do Pedido - Fundo Branco, Bordas Cinzas e Texto PRETO */
+    /* Caixinha Quadrada do Pedido - Fundo Branco, Bordas Cinzas e Texto PRETO */
     div.element-container button[data-testid="stBaseButton-secondary"] {
         background-color: #ffffff !important;
-        border: 1px solid #babcbf !important; /* Borda da caixa cinza */
-        border-top: 4px solid #FFD700 !important; /* Friso superior amarelo */
+        border: 1px solid #babcbf !important;
+        border-top: 4px solid #FFD700 !important; /* Friso amarelo */
         border-radius: 4px !important;
         padding: 12px !important;
         width: 100% !important;
@@ -149,14 +150,13 @@ st.markdown("""
         box-shadow: 0px 1px 3px rgba(0, 0, 0, 0.08) !important;
         display: block !important;
         transition: transform 0.3s ease, box-shadow 0.3s ease !important;
-        transition-delay: 0.8s !important;
+        transition-delay: 0.8s !important; /* Delay exato de zoom */
     }
     
-    /* Garante que o texto de dentro do botão do pedido seja PRETO PURO e visível */
-    div.element-container button[data-testid="stBaseButton-secondary"] div p {
+    /* Força as letras dentro da caixa a ficarem pretas e visíveis */
+    div.element-container button[data-testid="stBaseButton-secondary"] p {
         color: #000000 !important;
-        font-weight: 500 !important;
-        white-space: pre-wrap !important;
+        font-weight: bold !important;
     }
     
     div.element-container button[data-testid="stBaseButton-secondary"]:hover {
@@ -165,7 +165,7 @@ st.markdown("""
         background-color: #ffffff !important;
     }
     
-    /* Customização dos botões amarelos superiores do topo (permanecem amarelos, mas com letras pretas nítidas) */
+    /* Customização dos botões amarelos superiores do topo */
     div.element-container button[data-testid="stBaseButton-primary"] {
         background-color: #FFD700 !important;
         color: #000000 !important;
@@ -177,17 +177,6 @@ st.markdown("""
         background-color: #E6C200 !important;
         color: #000000 !important;
     }
-    
-    /* Ajustes em inputs para manter os textos visíveis no fundo branco */
-    input {
-        color: #000000 !important;
-        background-color: #ffffff !important;
-    }
-    
-    /* Linha horizontal divisória (hr) em cor cinza sólida */
-    hr {
-        border-color: #babcbf !important;
-    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -197,7 +186,7 @@ col_titulo, col_btn1, col_btn2 = st.columns([6, 2, 2])
 with col_titulo:
     st.title("📋 Painel de Controle")
 
-# Botões Amarelos com controle para resetar e voltar para tela inicial ao clicar
+# Botões Amarelos superiores
 with col_btn1:
     if st.button("👤 CRIAR CADASTRO", type="primary"):
         st.session_state.aba_aberta = "cadastro"
@@ -266,3 +255,13 @@ if st.session_state.pedido_selecionado is not None:
         st.write(f"**Cliente:** {row['nome']} | **Documento:** {row['documento_cliente']} ({row['tipo']})")
         st.markdown("---")
         
+        st.info(row['observacoes'] if row['observacoes'] else "Nenhuma informação adicionada.")
+        novas_obs = st.text_area("Adicionar Informações / Histórico Manual:", value=row['observacoes'], key=f"edit_obs_{row['id']}")
+        
+        arquivo = st.file_uploader("Anexar Arquivos / Notas:", key=f"edit_file_{row['id']}")
+        if arquivo:
+            st.caption(f"📎 Arquivo anexado: {arquivo.name}")
+            
+        etapas_lista = [
+            "Pedido Criado", "Confirmar Pix", "Faturar Notas", 
+
