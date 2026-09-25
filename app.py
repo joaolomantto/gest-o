@@ -2,15 +2,19 @@ import streamlit as st
 import sqlite3
 import pandas as pd
 import os
+import base64
 
-# 1. Configuração e Conexão com Banco de Dados SQLite
+# 1. CONFIGURAÇÃO DE DIRETÓRIOS E BANCO
 DB_FILE = "sistema_agendor_custom.db"
 UPLOAD_DIR = "arquivos_pedidos"
 
-# Cria a pasta para salvar os arquivos anexados, se não existir
+USER_MASTER = "admintecar.renault"
+SENHA_MASTER = "admin123"
+
 if not os.path.exists(UPLOAD_DIR):
     os.makedirs(UPLOAD_DIR)
 
+# 2. FUNÇÕES DE BANCO DE DADOS (SQLITE)
 def criar_banco():
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
@@ -33,12 +37,77 @@ def criar_banco():
             observacoes TEXT DEFAULT ''
         )
     ''')
-    
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS usuarios (
+            usuario TEXT PRIMARY KEY,
+            senha TEXT NOT NULL,
+            nome TEXT NOT NULL,
+            cpf TEXT NOT NULL,
+            data_nascimento TEXT NOT NULL,
+            telefone TEXT NOT NULL,
+            autorizado TEXT DEFAULT 'PENDENTE'
+        )
+    ''')
     try:
         c.execute("ALTER TABLE pedidos ADD COLUMN arquivo_caminho TEXT DEFAULT ''")
     except sqlite3.OperationalError:
         pass
-        
+    try:
+        c.execute("ALTER TABLE pedidos ADD COLUMN autor TEXT DEFAULT 'Não informado'")
+    except sqlite3.OperationalError:
+        pass
+    conn.commit()
+    conn.close()
+
+def cadastrar_usuario(usuario, senha, nome, cpf, dt_nasc, telefone):
+    conn = sqlite3.connect(DB_FILE)
+    c = conn.cursor()
+    try:
+        u_limpo = usuario.strip().lower()
+        c.execute("DELETE FROM usuarios WHERE usuario = ?", (u_limpo,))
+        c.execute('''
+            INSERT INTO usuarios (usuario, senha, nome, cpf, data_nascimento, telefone, autorizado)
+            VALUES (?, ?, ?, ?, ?, ?, 'PENDENTE')
+        ''', (u_limpo, senha, nome, cpf, dt_nasc, telefone))
+        conn.commit()
+        sucesso = True
+    except Exception:
+        sucesso = False
+    conn.close()
+    return sucesso
+
+def realizar_login(usuario, senha):
+    u_limpo = usuario.strip().lower()
+    if u_limpo == USER_MASTER and senha == SENHA_MASTER:
+        return {"usuario": USER_MASTER, "nome": "Admin Tecar Renault", "status": "APROVADO"}
+    conn = sqlite3.connect(DB_FILE)
+    c = conn.cursor()
+    c.execute("SELECT nome, autorizado FROM usuarios WHERE usuario = ? AND senha = ?", (u_limpo, senha))
+    res = c.fetchone()
+    conn.close()
+    if res:
+        return {"usuario": u_limpo, "nome": res[0], "status": res[1]}
+    return None
+
+def checar_status_usuario(usuario):
+    conn = sqlite3.connect(DB_FILE)
+    c = conn.cursor()
+    c.execute("SELECT autorizado FROM usuarios WHERE usuario = ?", (usuario.strip().lower(),))
+    res = c.fetchone()
+    conn.close()
+    return res[0] if res else "PENDENTE"
+
+def listar_usuarios_pendentes():
+    conn = sqlite3.connect(DB_FILE)
+    df = pd.read_sql_query("SELECT usuario, nome, cpf, telefone FROM usuarios WHERE autorizado = 'PENDENTE'", conn)
+    conn.close()
+    return df
+
+def julgar_usuario(usuario, decisao):
+    conn = sqlite3.connect(DB_FILE)
+    c = conn.cursor()
+    status = "APROVADO" if decisao == "ACEITAR" else "RECUSADO"
+    c.execute("UPDATE usuarios SET autorizado = ? WHERE usuario = ?", (status, usuario.strip().lower()))
     conn.commit()
     conn.close()
 
@@ -60,10 +129,10 @@ def salvar_cliente(doc, tipo, nome, rg=None, dt_nasc=None, orgao=None, dt_fund=N
     conn.commit()
     conn.close()
 
-def criar_novo_pedido(doc):
+def criar_novo_pedido(doc, autor):
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
-    c.execute("INSERT INTO pedidos (documento_cliente, etapa) VALUES (?, 'Pedido Criado')", (doc,))
+    c.execute("INSERT INTO pedidos (documento_cliente, etapa, autor) VALUES (?, 'Pedido Criado', ?)", (doc, autor))
     conn.commit()
     conn.close()
 
@@ -87,7 +156,7 @@ def excluir_pedido(id_ped):
 def carregar_fluxo():
     conn = sqlite3.connect(DB_FILE)
     df = pd.read_sql_query('''
-        SELECT p.id, p.documento_cliente, p.etapa, p.observacoes, p.arquivo_caminho, c.nome, c.tipo
+        SELECT p.id, p.documento_cliente, p.etapa, p.observacoes, p.arquivo_caminho, p.autor, c.nome, c.tipo
         FROM pedidos p
         JOIN clientes c ON p.documento_cliente = c.documento
     ''', conn)
@@ -96,186 +165,78 @@ def carregar_fluxo():
 
 criar_banco()
 
-# 2. Interface Estilizada e Minimalista
+# 3. CONFIGURAÇÃO DE INTERFACE E SESSÃO DO STREAMLIT
 st.set_page_config(layout="wide", page_title="Gestão de Fluxo", page_icon="📋")
+
+if "logado" not in st.session_state:
+    st.session_state["logado"] = False
+if "session_user" not in st.session_state:
+    st.session_state["session_user"] = ""
+if "session_nome" not in st.session_state:
+    st.session_state["session_nome"] = ""
+if "session_status" not in st.session_state:
+    st.session_state["session_status"] = ""
 
 st.markdown("""
     <style>
-    div[data-testid="stExpander"] {
-        background-color: #FFD700 !important;
-        border: 1px solid #E6C200 !important;
-        border-radius: 4px !important;
-        box-shadow: none !important;
-    }
-    div[data-testid="stExpander"] p {
-        color: #000000 !important;
-        font-weight: bold !important;
-    }
-    
-    div[data-testid="stHorizontalBlock"] {
-        align-items: stretch !important;
-    }
-    
-    div[data-testid="column"] {
-        padding-right: 10px !important;
-        padding-left: 10px !important;
-        border-right: 1px solid #e2e8f0 !important;
-        min-height: 80vh !important;
-    }
-    
-    div[data-testid="column"]:last-child {
-        border-right: none !important;
-    }
-    
-    .topo-coluna {
-        background-color: #f8fafc;
-        padding: 6px;
-        border-radius: 4px;
-        text-align: center;
-        margin-bottom: 15px;
-        border: 1px solid #edf2f7;
-        min-height: 48px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-    
-    .caixa-pedido {
-        background-color: #ffffff;
-        border: 1px solid #e2e8f0;
-        border-top: 3px solid #FFD700;
-        padding: 12px;
-        border-radius: 4px;
-        margin-bottom: 4px;
-        box-shadow: 0px 1px 3px rgba(0, 0, 0, 0.05);
-    }
-    
-    .id-pedido {
-        font-size: 13px;
-        font-weight: bold;
-        color: #1a202c;
-        margin-bottom: 2px;
-    }
-    
-    .nome-cliente {
-        font-size: 13px;
-        color: #4a5568;
-        word-wrap: break-word;
-    }
+    div[data-testid="stExpander"] { background-color: #FFD700 !important; border: 1px solid #E6C200 !important; border-radius: 4px !important; }
+    div[data-testid="stExpander"] p { color: #000000 !important; font-weight: bold !important; }
+    div[data-testid="stHorizontalBlock"] { align-items: stretch !important; }
+    div[data-testid="column"] { padding-right: 10px !important; padding-left: 10px !important; border-right: 1px solid #e2e8f0 !important; min-height: 80vh !important; }
+    div[data-testid="column"]:last-child { border-right: none !important; }
+    .topo-coluna { background-color: #f8fafc; padding: 6px; border-radius: 4px; text-align: center; margin-bottom: 15px; border: 1px solid #edf2f7; min-height: 48px; display: flex; align-items: center; justify-content: center; }
+    .caixa-pedido { background-color: #ffffff; border: 1px solid #e2e8f0; border-top: 3px solid #FFD700; padding: 12px; border-radius: 4px; margin-bottom: 4px; box-shadow: 0px 1px 3px rgba(0, 0, 0, 0.05); }
+    .id-pedido { font-size: 13px; font-weight: bold; color: #1a202c; margin-bottom: 2px; }
+    .nome-cliente { font-size: 13px; color: #4a5568; word-wrap: break-word; }
     </style>
 """, unsafe_allow_html=True)
 
-col_titulo, col_btn1, col_btn2 = st.columns([6, 2, 2])
-
-with col_titulo:
-    st.title("📋 Painel de Controle")
-
-with col_btn1:
-    criar_cad = st.expander("👤 CRIAR CADASTRO")
-with col_btn2:
-    criar_ped = st.expander("📦 CRIAR PEDIDO")
-
-with criar_cad:
-    st.markdown("<p style='color:black; font-weight:bold;'>Novo Cliente</p>", unsafe_allow_html=True)
-    tipo_pess = st.radio("Tipo de Pessoa", ["PESSOA FÍSICA", "PESSOA JURÍDICA"], horizontal=True)
+# ----------------------------------------------------
+# TELA 1: PORTAL DE ENTRADA (LOGIN / CADASTRO)
+# ----------------------------------------------------
+if not st.session_state["logado"]:
+    st.title("📋 Portal de Acesso — Gestão de Fluxo")
+    tab_login, tab_cadastro = st.tabs(["🔒 Acessar Minha Conta", "👤 Criar Nova Conta"])
     
-    with st.form("form_cliente", clear_on_submit=True):
-        if tipo_pess == "PESSOA FÍSICA":
-            nome = st.text_input("Nome:")
-            cpf = st.text_input("CPF:")
-            rg = st.text_input("RG:")
-            dt_nasc = st.text_input("Data de Nascimento (DD/MM/AAAA):")
-            orgao = st.text_input("Órgão Emissor:")
-            if st.form_submit_button("Salvar Cliente"):
-                if nome and cpf:
-                    salvar_cliente(cpf, "PF", nome, rg, dt_nasc, orgao)
-                    st.success("Cliente PF Cadastrado!")
+    with tab_login:
+        with st.form("form_login_sistema"):
+            input_user = st.text_input("Usuário:")
+            input_pass = st.text_input("Senha:", type="password")
+            if st.form_submit_button("Entrar no Painel", use_container_width=True):
+                conta = realizar_login(input_user, input_pass)
+                if conta:
+                    st.session_state["logado"] = True
+                    st.session_state["session_user"] = conta["usuario"]
+                    st.session_state["session_nome"] = conta["nome"]
+                    st.session_state["session_status"] = conta["status"]
                     st.rerun()
-        else:
-            nome_emp = st.text_input("Nome da Empresa:")
-            cnpj = st.text_input("CNPJ:")
-            dt_fund = st.text_input("Data de Fundação (DD/MM/AAAA):")
-            if st.form_submit_button("Salvar Empresa"):
-                if nome_emp and cnpj:
-                    salvar_cliente(cnpj, "PJ", nome_emp, dt_fund=dt_fund)
-                    st.success("Cliente PJ Cadastrado!")
-                    st.rerun()
-
-with criar_ped:
-    st.markdown("<p style='color:black; font-weight:bold;'>Novo Pedido</p>", unsafe_allow_html=True)
-    doc_busca = st.text_input("Digite o CPF ou CNPJ do Cliente:")
-    if doc_busca:
-        cliente_encontrado = buscar_cliente(doc_busca)
-        if cliente_encontrado:
-            st.info(f"Cliente identificado: {cliente_encontrado[0]}")
-            if st.button("Confirmar e Criar Pedido", type="primary"):
-                criar_novo_pedido(doc_busca)
-                st.success("Pedido enviado para 'Pedido Criado'!")
-                st.rerun()
-        else:
-            st.error("Cliente não localizado. Realize o cadastro primeiro.")
-
-st.markdown("---")
-
-# 3. Definição das 8 Colunas do Kanban
-etapas = [
-    "Pedido Criado", "Confirmar Pix", "Faturar Notas", 
-    "Faturar Entregar e Receber", "Cliente vem Buscar", 
-    "Entregas via Tecar", "Transportadora", "Pedido Finalizado"
-]
-
-colunas_quadro = st.columns(len(etapas))
-df_pedidos = carregar_fluxo()
-
-for idx_etapa, etapa in enumerate(etapas):
-    with colunas_quadro[idx_etapa]:
-        st.markdown(f"""
-            <div class='topo-coluna'>
-                <b style='font-size:11px; color:#2d3748;'>{etapa.upper()}</b>
-            </div>
-        """, unsafe_allow_html=True)
-        
-        pedidos_fase = df_pedidos[df_pedidos["etapa"] == etapa] if not df_pedidos.empty else pd.DataFrame()
-        
-        for _, row in pedidos_fase.iterrows():
-            st.markdown(f"""
-                <div class='caixa-pedido'>
-                    <div class='id-pedido'>P-{row['id']}</div>
-                    <div class='nome-cliente'>{row['nome']}</div>
-                </div>
-            """, unsafe_allow_html=True)
+                else:
+                    st.error("Usuário ou senha incorretos.")
+                    
+    with tab_cadastro:
+        with st.form("form_cadastro_estavel", clear_on_submit=False):
+            new_nome = st.text_input("Nome Completo:")
+            new_cpf = st.text_input("CPF (Apenas números):")
+            new_nasc = st.text_input("Data de Nascimento (DD/MM/AAAA):")
+            new_fone = st.text_input("Telefone de Contato:")
+            st.markdown("---")
+            new_user = st.text_input("Escolha um Nome de Usuário (Para o login):")
+            new_pass = st.text_input("Defina sua Senha de Acesso:", type="password")
             
-            # Detalhes do pedido (Popover)
-            with st.popover("⚙️ Detalhes / Opções", use_container_width=True):
-                st.write(f"**Pedido:** P-{row['id']}")
-                st.write(f"**Cliente:** {row['nome']} ({row['documento_cliente']})")
-                st.info(row['observacoes'] if row['observacoes'] else "Sem informações adicionadas.")
-                
-                if row['arquivo_caminho']:
-                    nome_arquivo = os.path.basename(row['arquivo_caminho'])
-                    st.markdown(f"📎 **Arquivo Anexado:** `{nome_arquivo}`")
-                
-                st.markdown("---")
-                
-                arquivo_carregado = st.file_uploader("Adicionar / Substituir Arquivos:", key=f"file_{row['id']}")
-                
-                nova_fase = st.selectbox("Mover para etapa:", etapas, index=etapas.index(row['etapa']), key=f"fase_{row['id']}")
-                novas_obs = st.text_area("Observações do pedido:", value=row['observacoes'], key=f"obs_{row['id']}")
-                
-                col_salvar, col_excluir = st.columns(2)
-                
-                with col_salvar:
-                    if st.button("Salvar Mudanças", key=f"btn_salvar_{row['id']}", type="primary", use_container_width=True):
-                        caminho_salvo = None
-                        if arquivo_carregado is not None:
-                            caminho_salvo = os.path.join(UPLOAD_DIR, f"pedido_{row['id']}_{arquivo_carregado.name}")
-                            with open(caminho_salvo, "wb") as f:
-                                f.write(arquivo_carregado.getbuffer())
-                        
-                        atualizar_pedido(row['id'], nova_fase, novas_obs, caminho_salvo)
-                        st.rerun()
-                        
-                with col_excluir:
-                    if st.button("🚫 Excluir Pedido", key=f"btn_excluir_{row['id']}", type="secondary", use_container_width=True):
-                        excluir_pedido(row['id'])
-                        st.rerun()
+            if st.form_submit_button("🚀 Cadastrar e Solicitar Permissão", use_container_width=True):
+                if not (new_nome and new_cpf and new_nasc and new_fone and new_user and new_pass):
+                    st.error("Preencha todos os campos do formulário para concluir.")
+                elif new_user.strip().lower() == USER_MASTER:
+                    st.error("Este nome de usuário é reservado ao administrador.")
+                else:
+                    if cadastrar_usuario(new_user, new_pass, new_nome, new_cpf, new_nasc, new_fone):
+                        st.success("🎯 Conta criada com sucesso! Vá para a aba '🔒 Acessar Minha Conta' acima e faça seu login.")
+                    else:
+                        st.error("Erro interno ao salvar. Tente escolher outro nome de usuário.")
+    st.stop()
+
+# ----------------------------------------------------
+# TELA 2: BARREIRA DE VALIDAÇÃO (PENDENTE OU RECUSADO)
+# ----------------------------------------------------
+if st.session_state["session_status"] == "PENDENTE":
+    st.title("📋 Solicitação em Análise")
