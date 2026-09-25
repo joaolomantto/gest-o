@@ -3,9 +3,10 @@ import sqlite3
 import pandas as pd
 import os
 import base64
+from datetime import datetime
 
 # 1. Configuração e Conexão com Banco de Dados SQLite
-DB_FILE = "sistema_agendor_custom.db"
+DB_FILE = "sistema_agendor_v3.db"
 UPLOAD_DIR = "arquivos_pedidos"
 
 # Cria a pasta para salvar os arquivos anexados, se não existir
@@ -26,27 +27,18 @@ def criar_banco():
             data_fundacao TEXT
         )
     ''')
+    # Tabela criada com a coluna ultima_atualizacao nativa
     c.execute('''
         CREATE TABLE IF NOT EXISTS pedidos (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             documento_cliente TEXT NOT NULL,
             etapa TEXT NOT NULL,
-            observacoes TEXT DEFAULT ''
+            observacoes TEXT DEFAULT '',
+            arquivo_caminho TEXT DEFAULT '',
+            autor TEXT DEFAULT 'Não informado',
+            ultima_atualizacao TEXT DEFAULT ''
         )
     ''')
-    
-    # Adiciona a coluna de arquivos se ela não existir
-    try:
-        c.execute("ALTER TABLE pedidos ADD COLUMN arquivo_caminho TEXT DEFAULT ''")
-    except sqlite3.OperationalError:
-        pass
-
-    # Adiciona a coluna de autor se ela não existir de forma segura
-    try:
-        c.execute("ALTER TABLE pedidos ADD COLUMN autor TEXT DEFAULT 'Não informado'")
-    except sqlite3.OperationalError:
-        pass
-        
     conn.commit()
     conn.close()
 
@@ -71,17 +63,30 @@ def salvar_cliente(doc, tipo, nome, rg=None, dt_nasc=None, orgao=None, dt_fund=N
 def criar_novo_pedido(doc, autor):
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
-    c.execute("INSERT INTO pedidos (documento_cliente, etapa, autor) VALUES (?, 'Pedido Criado', ?)", (doc, autor))
+    agora = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+    c.execute('''
+        INSERT INTO pedidos (documento_cliente, etapa, autor, ultima_atualizacao) 
+        VALUES (?, 'Pedido Criado', ?, ?)
+    ''', (doc, autor, agora))
     conn.commit()
     conn.close()
 
 def atualizar_pedido(id_ped, nova_etapa, novas_obs, arquivo_path=None):
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
+    agora = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
     if arquivo_path:
-        c.execute("UPDATE pedidos SET etapa = ?, observacoes = ?, arquivo_caminho = ? WHERE id = ?", (nova_etapa, novas_obs, arquivo_path, id_ped))
+        c.execute('''
+            UPDATE pedidos 
+            SET etapa = ?, observacoes = ?, arquivo_caminho = ?, ultima_atualizacao = ? 
+            WHERE id = ?
+        ''', (nova_etapa, novas_obs, arquivo_path, agora, id_ped))
     else:
-        c.execute("UPDATE pedidos SET etapa = ?, observacoes = ? WHERE id = ?", (nova_etapa, novas_obs, id_ped))
+        c.execute('''
+            UPDATE pedidos 
+            SET etapa = ?, observacoes = ?, ultima_atualizacao = ? 
+            WHERE id = ?
+        ''', (nova_etapa, novas_obs, agora, id_ped))
     conn.commit()
     conn.close()
 
@@ -94,16 +99,14 @@ def excluir_pedido(id_ped):
 
 def carregar_fluxo():
     conn = sqlite3.connect(DB_FILE)
-    # Mudado para LEFT JOIN para manter a estrutura das colunas visível mesmo sem pedidos cadastrados
     df = pd.read_sql_query('''
-        SELECT p.id, p.documento_cliente, p.etapa, p.observacoes, p.arquivo_caminho, p.autor, c.nome, c.tipo
+        SELECT p.id, p.documento_cliente, p.etapa, p.observacoes, p.arquivo_caminho, p.autor, p.ultima_atualizacao, c.nome, c.tipo
         FROM pedidos p
         LEFT JOIN clientes c ON p.documento_cliente = c.documento
     ''', conn)
     conn.close()
     return df
 
-# Função auxiliar para gerar visualização embutida de arquivos PDF
 def exibir_pdf(caminho_pdf):
     try:
         with open(caminho_pdf, "rb") as f:
@@ -130,22 +133,18 @@ st.markdown("""
         color: #000000 !important;
         font-weight: bold !important;
     }
-    
     div[data-testid="stHorizontalBlock"] {
         align-items: stretch !important;
     }
-    
     div[data-testid="column"] {
         padding-right: 10px !important;
         padding-left: 10px !important;
         border-right: 1px solid #e2e8f0 !important;
         min-height: 80vh !important;
     }
-    
     div[data-testid="column"]:last-child {
         border-right: none !important;
     }
-    
     .topo-coluna {
         background-color: #f8fafc;
         padding: 6px;
@@ -158,7 +157,6 @@ st.markdown("""
         align-items: center;
         justify-content: center;
     }
-    
     .caixa-pedido {
         background-color: #ffffff;
         border: 1px solid #e2e8f0;
@@ -168,14 +166,12 @@ st.markdown("""
         margin-bottom: 8px;
         box-shadow: 0px 1px 3px rgba(0, 0, 0, 0.05);
     }
-    
     .id-pedido {
         font-size: 13px;
         font-weight: bold;
         color: #1a202c;
         margin-bottom: 2px;
     }
-    
     .nome-cliente {
         font-size: 13px;
         color: #4a5568;
@@ -234,13 +230,13 @@ with criar_ped:
                     st.success("Pedido enviado para 'Pedido Criado'!")
                     st.rerun()
                 else:
-                    st.error("Por favor, preencha o seu nome para sabermos quem é o autor do pedido.")
+                    st.error("Por favor, preencha o seu nome.")
         else:
             st.error("Cliente não localizado. Realize o cadastro primeiro.")
 
 st.markdown("---")
 
-# 3. Definição das 8 Colunas do Kanban
+# 3. Definição das 8 Colunas do Kanban (Fixas na tela)
 etapas = [
     "Pedido Criado", "Confirmar Pix", "Faturar Notas", 
     "Faturar Entregar e Receber", "Cliente vem Buscar", 
@@ -258,7 +254,6 @@ for idx_etapa, etapa in enumerate(etapas):
             </div>
         """, unsafe_allow_html=True)
         
-        # Filtra os pedidos se o DataFrame contiver registros válidos
         if not df_pedidos.empty:
             pedidos_fase = df_pedidos[(df_pedidos['etapa'] == etapa) & (df_pedidos['id'].notna())]
         else:
@@ -275,8 +270,12 @@ for idx_etapa, etapa in enumerate(etapas):
                     </div>
                 """, unsafe_allow_html=True)
                 
-                # Abre o modal de detalhes do pedido correspondente
                 if st.button("🔍 Detalhes", key=f"detalhe_{int(row['id'])}", use_container_width=True):
                     st.session_state[f"modal_{int(row['id'])}"] = True
 
-                # Modal do Streamlit (st.dialog) acessível para modificação geral
+                @st.dialog(f"Detalhes do Pedido #{int(row['id'])}", width="large")
+                def mostrar_detalhes(pedido_info):
+                    col_det1, col_det2 = st.columns([5, 5])
+                    
+                    with col_det1:
+                        st.subheader("📋 Informações Gerais")
