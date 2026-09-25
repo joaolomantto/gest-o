@@ -163,8 +163,8 @@ with st.sidebar:
                 dados_user = verificar_login(user_login, senha_login)
                 if dados_user:
                     st.session_state.usuario = user_login.strip().lower()
-                    st.session_state.usuario_nome = dados_user[0]
-                    st.success(f"Bem-vindo, {dados_user[0]}!")
+                    st.session_state.usuario_nome = dados_user
+                    st.success(f"Bem-vindo, {dados_user}!")
                     st.rerun()
                 else:
                     st.error("Usuário ou senha incorretos.")
@@ -254,7 +254,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-col_titulo, col_btn1, col_btn2 = st.columns([6, 2, 2])
+col_titulo, col_btn1, col_btn2 = st.columns()
 
 with col_titulo:
     st.title("📋 Painel de Controle")
@@ -270,15 +270,15 @@ with criar_cad:
     
     with st.form("form_cliente", clear_on_submit=True):
         if tipo_pess == "PESSOA FÍSICA":
-            nome = st.text_input("Nome:")
-            cpf = st.text_input("CPF:")
-            rg = st.text_input("RG:")
-            dt_nasc = st.text_input("Data de Nascimento (DD/MM/AAAA):")
-            orgao = st.text_input("Órgão Emissor:")
+            pf_nome = st.text_input("Nome:")
+            pf_cpf = st.text_input("CPF:")
+            pf_rg = st.text_input("RG:")
+            pf_dt_nasc = st.text_input("Data de Nascimento (DD/MM/AAAA):")
+            pf_orgao = st.text_input("Órgão Emissor:")
             
             if st.form_submit_button("Salvar Cliente"):
-                if nome and cpf:
-                    salvar_cliente(cpf, "PF", nome, rg, dt_nasc, orgao)
+                if pf_nome and pf_cpf:
+                    salvar_cliente(pf_cpf, "PF", pf_nome, pf_rg, pf_dt_nasc, pf_orgao)
                     st.success("Cliente PF Cadastrado!")
                     st.rerun()
                 else:
