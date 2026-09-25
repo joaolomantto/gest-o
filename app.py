@@ -31,24 +31,39 @@ def criar_banco():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             documento_cliente TEXT NOT NULL,
             etapa TEXT NOT NULL,
-            observacoes TEXT DEFAULT ''
+            observacoes TEXT DEFAULT '',
+            arquivo_caminho TEXT DEFAULT '',
+            autor TEXT DEFAULT 'Não informado'
         )
     ''')
-    
-    # Adiciona a coluna de arquivos se ela não existir
-    try:
-        c.execute("ALTER TABLE pedidos ADD COLUMN arquivo_caminho TEXT DEFAULT ''")
-    except sqlite3.OperationalError:
-        pass
-
-    # Adiciona a coluna de autor se ela não existir de forma segura
-    try:
-        c.execute("ALTER TABLE pedidos ADD COLUMN autor TEXT DEFAULT 'Não informado'")
-    except sqlite3.OperationalError:
-        pass
-        
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS usuarios (
+            username TEXT PRIMARY KEY,
+            nome TEXT NOT NULL
+        )
+    ''')
     conn.commit()
     conn.close()
+
+def cadastrar_usuario(username, nome):
+    conn = sqlite3.connect(DB_FILE)
+    c = conn.cursor()
+    try:
+        c.execute("INSERT INTO usuarios (username, nome) VALUES (?, ?)", (username.strip().lower(), nome))
+        conn.commit()
+        sucesso = True
+    except sqlite3.IntegrityError:
+        sucesso = False
+    conn.close()
+    return sucesso
+
+def buscar_usuario(username):
+    conn = sqlite3.connect(DB_FILE)
+    c = conn.cursor()
+    c.execute("SELECT nome FROM usuarios WHERE username = ?", (username.strip().lower(),))
+    res = c.fetchone()
+    conn.close()
+    return res
 
 def buscar_cliente(doc):
     conn = sqlite3.connect(DB_FILE)
@@ -102,11 +117,69 @@ def carregar_fluxo():
     conn.close()
     return df
 
+# Função auxiliar para gerar visualização embutida de PDF
+def exibir_pdf(caminho_pdf):
+    try:
+        with open(caminho_pdf, "rb") as f:
+            base64_pdf = base64.b64encode(f.read()).decode('utf-8')
+        pdf_display = f'<iframe src="data:application/pdf;base64,{base64_pdf}" width="100%" height="500" type="application/pdf"></iframe>'
+        st.markdown(pdf_display, unsafe_allow_html=True)
+    except Exception as e:
+        st.error(f"Erro ao carregar o arquivo PDF: {e}")
+
 criar_banco()
 
-# 2. Interface Estilizada e Minimalista
+# 2. Interface Estilizada e Configuração Inicial
 st.set_page_config(layout="wide", page_title="Gestão de Fluxo", page_icon="📋")
 
+# Controle de Sessão de Usuário (Login Simplificado)
+if "usuario" not in st.session_state:
+    st.session_state.usuario = None
+if "usuario_nome" not in st.session_state:
+    st.session_state.usuario_nome = None
+
+# Sidebar para Login / Cadastro
+with st.sidebar:
+    st.header("👤 Autenticação")
+    if not st.session_state.usuario:
+        aba_login, aba_cad = st.tabs(["Entrar", "Cadastrar-se"])
+        
+        with aba_login:
+            user_login = st.text_input("Usuário (Username):", key="login_user")
+            if st.button("Acessar Painel"):
+                dados_user = buscar_usuario(user_login)
+                if dados_user:
+                    st.session_state.usuario = user_login.strip().lower()
+                    st.session_state.usuario_nome = dados_user[0]
+                    st.success(f"Bem-vindo, {dados_user[0]}!")
+                    st.rerun()
+                else:
+                    st.error("Usuário não encontrado. Cadastre-se primeiro.")
+                    
+        with aba_cad:
+            new_user = st.text_input("Escolha um Username:", key="cad_user")
+            new_nome = st.text_input("Seu Nome Completo:", key="cad_nome")
+            if st.button("Criar Conta"):
+                if new_user and new_nome:
+                    if cadastrar_usuario(new_user, new_nome):
+                        st.success("Cadastro realizado! Use a aba 'Entrar'.")
+                    else:
+                        st.error("Username já está em uso.")
+                else:
+                    st.error("Preencha todos os campos.")
+    else:
+        st.write(f"Conectado como: **{st.session_state.usuario_nome}** (`{st.session_state.usuario}`)")
+        if st.button("Sair / Trocar Usuário"):
+            st.session_state.usuario = None
+            st.session_state.usuario_nome = None
+            st.rerun()
+
+# Se não estiver logado, bloqueia o painel principal
+if not st.session_state.usuario:
+    st.warning("⚠️ Por favor, faça login ou cadastre-se na barra lateral esquerda para acessar o painel.")
+    st.stop()
+
+# Estilos CSS Customizados
 st.markdown("""
     <style>
     div[data-testid="stExpander"] {
@@ -119,22 +192,18 @@ st.markdown("""
         color: #000000 !important;
         font-weight: bold !important;
     }
-    
     div[data-testid="stHorizontalBlock"] {
         align-items: stretch !important;
     }
-    
     div[data-testid="column"] {
         padding-right: 10px !important;
         padding-left: 10px !important;
         border-right: 1px solid #e2e8f0 !important;
         min-height: 80vh !important;
     }
-    
     div[data-testid="column"]:last-child {
         border-right: none !important;
     }
-    
     .topo-coluna {
         background-color: #f8fafc;
         padding: 6px;
@@ -147,24 +216,21 @@ st.markdown("""
         align-items: center;
         justify-content: center;
     }
-    
     .caixa-pedido {
         background-color: #ffffff;
         border: 1px solid #e2e8f0;
         border-top: 3px solid #FFD700;
         padding: 12px;
         border-radius: 4px;
-        margin-bottom: 4px;
+        margin-bottom: 8px;
         box-shadow: 0px 1px 3px rgba(0, 0, 0, 0.05);
     }
-    
     .id-pedido {
         font-size: 13px;
         font-weight: bold;
         color: #1a202c;
         margin-bottom: 2px;
     }
-    
     .nome-cliente {
         font-size: 13px;
         color: #4a5568;
@@ -215,66 +281,5 @@ with criar_ped:
     if doc_busca:
         cliente_encontrado = buscar_cliente(doc_busca)
         if cliente_encontrado:
-            st.info(f"Cliente identificado: {cliente_encontrado}")
-            autor_input = st.text_input("Seu Nome (Dono do Pedido):", key="novo_autor_pedido")
-            if st.button("Confirmar e Criar Pedido", type="primary"):
-                if autor_input.strip() != "":
-                    criar_novo_pedido(doc_busca, autor_input.strip().lower())
-                    st.success("Pedido enviado para 'Pedido Criado'!")
-                    st.rerun()
-                else:
-                    st.error("Por favor, preencha o seu nome para sabermos quem é o autor do pedido.")
-        else:
-            st.error("Cliente não localizado. Realize o cadastro primeiro.")
-
-st.markdown("---")
-
-# 3. Definição das 8 Colunas do Kanban
-etapas = [
-    "Pedido Criado", "Confirmar Pix", "Faturar Notas", 
-    "Faturar Entregar e Receber", "Cliente vem Buscar", 
-    "Entregas via Tecar", "Transportadora", "Pedido Finalizado"
-]
-
-colunas_quadro = st.columns(len(etapas))
-df_pedidos = carregar_fluxo()
-
-for idx_etapa, etapa in enumerate(etapas):
-    with colunas_quadro[idx_etapa]:
-        st.markdown(f"""
-            <div class='topo-coluna'>
-                <b style='font-size:11px; color:#2d3748;'>{etapa.upper()}</b>
-            </div>
-        """, unsafe_allow_html=True)
-        
-        pedidos_fase = df_pedidos[df_pedidos["etapa"] == etapa] if not df_pedidos.empty else pd.DataFrame()
-        
-        for _, row in pedidos_fase.iterrows():
-            st.markdown(f"""
-                <div class='caixa-pedido'>
-                    <div class='id-pedido'>P-{row['id']}</div>
-                    <div class='nome-cliente'>{row['nome']}</div>
-                </div>
-            """, unsafe_allow_html=True)
-            
-            # Detalhes do pedido (Popover)
-            with st.popover("⚙️ Detalhes / Opções", use_container_width=True):
-                st.write(f"**Pedido:** P-{row['id']}")
-                st.write(f"**Cliente:** {row['nome']} ({row['documento_cliente']})")
-                st.write(f"👤 **Autor do Pedido:** {row['autor'].title()}")
-                st.info(row['observacoes'] if row['observacoes'] else "Sem informações adicionadas.")
-                
-                # ATUALIZAÇÃO: Visualizador interno de arquivos na própria página
-                if row['arquivo_caminho'] and os.path.exists(row['arquivo_caminho']):
-                    nome_arquivo = os.path.basename(row['arquivo_caminho'])
-                    extensao = nome_arquivo.split('.')[-1].lower()
-                    
-                    st.markdown(f"📎 **Arquivo Anexado:** `{nome_arquivo}`")
-                    
-                    with open(row['arquivo_caminho'], "rb") as f:
-                        dados_arquivo = f.read()
-                    
-                    # Se for PDF, renderiza em um iframe interativo embutido
-                    if extensao == "pdf":
-                        base64_pdf = base64.b64encode(dados_arquivo).decode('utf-8')
-                        pdf_display = f'<iframe src="data:application/pdf;base64,{base64_pdf}" width="100%" height="400" type="application/pdf"></iframe>'
+            st.info(f"Cliente identificado: {cliente_encontrado[0]}")
+            # Vincula o criador automaticamente ao usuário ativo logado
