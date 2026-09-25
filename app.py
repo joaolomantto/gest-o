@@ -64,7 +64,7 @@ def cadastrar_usuario(nome, cpf, email, dt_nasc, telefone):
         c.execute('''
             INSERT INTO usuarios (cpf, nome, email, data_nascimento, telefone, autorizado)
             VALUES (?, ?, ?, ?, ?, 0)
-        ''', (cpf, nome, email, dt_nasc, telephone))
+        ''', (cpf, nome, email, dt_nasc, telefone))
         conn.commit()
         sucesso = True
     except sqlite3.IntegrityError:
@@ -157,14 +157,6 @@ if "usuario_nome" not in st.session_state:
 if "modo_chefe_emergencia" not in st.session_state:
     st.session_state["modo_chefe_emergencia"] = False
 
-# CORREÇÃO CRÍTICA DE REDIRECIONAMENTO: Captura o clique das senhas master ANTES do desenho dos bloqueios
-if not st.session_state["modo_chefe_emergencia"]:
-    if "senha_inicial" in st.sidebar and st.sidebar.get("senha_inicial") == CHAVE_MESTRE_CHEFE:
-        st.session_state["modo_chefe_emergencia"] = True
-        st.session_state["usuario_nome"] = "Administrador"
-        st.session_state["usuario_cpf"] = "MASTER"
-        st.rerun()
-
 st.markdown("""
     <style>
     div[data-testid="stExpander"] {
@@ -247,7 +239,7 @@ if not st.session_state["modo_chefe_emergencia"]:
                         st.error("Todos os campos do formulário são obrigatórios.")
         
         st.markdown("---")
-        # CORREÇÃO: Formulário direto no escopo para garantir persistência do clique do Chefe na Tela Inicial
+        # CORRIGIDO: Validação direta sem sidebar.get() para eliminar o TypeError completamente
         senha_direta = st.text_input("🔑 Chave Mestre do Chefe (Entrar sem Cadastro):", type="password", key="senha_tit_chefe")
         if st.button("Ignorar e Acessar Funis como Administrador"):
             if senha_direta == CHAVE_MESTRE_CHEFE:
@@ -255,3 +247,11 @@ if not st.session_state["modo_chefe_emergencia"]:
                 st.session_state["usuario_nome"] = "Administrador"
                 st.session_state["usuario_cpf"] = "MASTER"
                 st.rerun()
+            else:
+                st.error("Chave mestre incorreta.")
+        st.stop()
+
+    # Se a pessoa se cadastrou mas ainda não foi liberada por você no banco, cai na tela de espera
+    dados_usuario = checar_status_usuario(st.session_state["usuario_cpf"])
+    if dados_usuario and dados_usuario[1] == 0:
+        st.title("📋 Aguardando Liberação")
