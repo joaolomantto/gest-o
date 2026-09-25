@@ -63,6 +63,14 @@ def atualizar_pedido(id_ped, nova_etapa, novas_obs):
     conn.commit()
     conn.close()
 
+# NOVA FUNÇÃO: Remove o pedido com base no ID recebido
+def excluir_pedido(id_ped):
+    conn = sqlite3.connect(DB_FILE)
+    c = conn.cursor()
+    c.execute("DELETE FROM pedidos WHERE id = ?", (id_ped,))
+    conn.commit()
+    conn.close()
+
 def carregar_fluxo():
     conn = sqlite3.connect(DB_FILE)
     df = pd.read_sql_query('''
@@ -232,18 +240,27 @@ for idx_etapa, etapa in enumerate(etapas):
             with st.popover("⚙️ Detalhes / Mover", use_container_width=True):
                 st.write(f"**Pedido:** P-{row['id']}")
                 st.write(f"**Cliente:** {row['nome']} ({row['documento_cliente']})")
-                
                 st.info(row['observacoes'] if row['observacoes'] else "Sem informações adicionadas.")
                 
-                novas_obs = st.text_area("Adicionar Informações / Histórico:", value=row['observacoes'], key=f"obs_{row['id']}")
+                # ADICIONADO: Seção para alteração de etapas ou exclusão do registro
+                st.markdown("---")
                 
-                arquivo = st.file_uploader("Adicionar arquivos:", key=f"file_{row['id']}")
-                if arquivo:
-                    st.caption(f"📎 Arquivo anexado: {arquivo.name}")
+                # Campos de edição rápida para salvar/atualizar notas e mudar de coluna
+                nova_fase = st.selectbox("Mover para etapa:", etapas, index=etapas.index(row['etapa']), key=f"fase_{row['id']}")
+                novas_obs = st.text_area("Observações do pedido:", value=row['observacoes'], key=f"obs_{row['id']}")
                 
-                nova_fase = st.selectbox("Mover manualmente para:", etapas, index=etapas.index(etapa), key=f"fase_{row['id']}")
+                # Alinhamento dos botões Salvar e Excluir
+                col_salvar, col_excluir = st.columns(2)
                 
-                if st.button("Salvar Alterações", key=f"save_{row['id']}", type="primary"):
-                    atualizar_pedido(row['id'], nova_fase, novas_obs)
-                    st.success("Pedido Atualizado!")
-                    st.rerun()
+                with col_salvar:
+                    if st.button("Salvar Mudanças", key=f"btn_salvar_{row['id']}", type="primary", use_container_width=True):
+                        atualizar_pedido(row['id'], nova_fase, novas_obs)
+                        st.success("Pedido atualizado!")
+                        st.rerun()
+                        
+                with col_excluir:
+                    # Botão vermelho estilizado nativamente no Streamlit
+                    if st.button("🚫 Excluir Pedido", key=f"btn_excluir_{row['id']}", type="secondary", use_container_width=True):
+                        excluir_pedido(row['id'])
+                        st.toast(f"Pedido P-{row['id']} excluído com sucesso!")
+                        st.rerun()
