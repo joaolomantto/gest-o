@@ -255,7 +255,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Configuração estável de colunas superiores
-col_titulo, col_btn1, col_btn2 = st.columns([6, 2, 2])
+col_titulo, col_btn1, col_btn2 = st.columns()
 
 with col_titulo:
     st.title("📋 Painel de Controle")
@@ -279,5 +279,4 @@ with criar_cad:
             pf_orgao = st.text_input("Órgão Emissor:")
             submit_pf = st.form_submit_button("Salvar Cliente Física")
             
-        # Executa de forma linear fora do bloco condicional interno
-        if submit_pf:
+        # PROVA DE ERROS: Execução fora de blocos 'if' aninhados usando inline direto
