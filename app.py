@@ -119,10 +119,11 @@ def excluir_pedido(id_ped):
 
 def carregar_fluxo():
     conn = sqlite3.connect(DB_FILE)
+    # AJUSTE DA BUSCA: Mudado para LEFT JOIN para trazer a estrutura mesmo sem pedidos criados
     df = pd.read_sql_query('''
         SELECT p.id, p.documento_cliente, p.etapa, p.observacoes, p.arquivo_caminho, p.autor, c.nome, c.tipo
         FROM pedidos p
-        JOIN clientes c ON p.documento_cliente = c.documento
+        LEFT JOIN clientes c ON p.documento_cliente = c.documento
     ''', conn)
     conn.close()
     return df
@@ -254,7 +255,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Configuração estável de colunas superiores (Passando o número exato 3 em formato de tupla)
+# Configuração estável de colunas superiores
 col_titulo, col_btn1, col_btn2 = st.columns([4, 3, 3])
 
 with col_titulo:
@@ -279,3 +280,4 @@ with criar_cad:
             pf_orgao = st.text_input("Órgão Emissor:")
             submit_pf = st.form_submit_button("Salvar Cliente Física")
             
+        if submit_pf:
