@@ -41,13 +41,22 @@ def criar_banco():
             autor TEXT DEFAULT 'Não informado'
         )
     ''')
+    
+    # Cria a tabela de usuários caso ela não exista
     c.execute('''
         CREATE TABLE IF NOT EXISTS usuarios (
             username TEXT PRIMARY KEY,
             nome TEXT NOT NULL,
-            senha_hash TEXT NOT NULL
+            senha_hash TEXT NOT NULL DEFAULT ''
         )
     ''')
+    
+    # CORREÇÃO DO ERRO: Adiciona a coluna senha_hash se a tabela já existia sem ela
+    try:
+        c.execute("ALTER TABLE usuarios ADD COLUMN senha_hash TEXT NOT NULL DEFAULT ''")
+    except sqlite3.OperationalError:
+        pass # A coluna já existe, ignora o erro
+        
     conn.commit()
     conn.close()
 
@@ -56,7 +65,7 @@ def cadastrar_usuario(username, nome, senha):
     c = conn.cursor()
     senha_hash = gerará_hash_senha(senha)
     try:
-        c.execute("INSERT INTO usuarios (username, nome, senha_hash) VALUES (?, ?, ?)", 
+        c.execute("INSERT OR REPLACE INTO usuarios (username, nome, senha_hash) VALUES (?, ?, ?)", 
                   (username.strip().lower(), nome, senha_hash))
         conn.commit()
         sucesso = True
@@ -253,7 +262,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-col_titulo, col_btn1, col_btn2 = st.columns([6, 2, 2])
+col_titulo, col_btn1, col_btn2 = st.columns()
 
 with col_titulo:
     st.title("📋 Painel de Controle")
@@ -275,11 +284,3 @@ with criar_cad:
             dt_nasc = st.text_input("Data de Nascimento (DD/MM/AAAA):")
             orgao = st.text_input("Órgão Emissor:")
             if st.form_submit_button("Salvar Cliente"):
-                if nome and cpf:
-                    salvar_cliente(cpf, "PF", nome, rg, dt_nasc, orgao)
-                    st.success("Cliente PF Cadastrado!")
-                    st.rerun()
-        else:
-            nome_emp = st.text_input("Nome da Empresa:")
-            cnpj = st.text_input("CNPJ:")
-            dt_fund = st.text_input("Data de Fundação (DD/MM/AAAA):")
