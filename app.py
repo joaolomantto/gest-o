@@ -24,7 +24,7 @@ def criar_banco():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             documento_cliente TEXT NOT NULL,
             etapa TEXT NOT NULL,
-            observacoes TEXT DEFAULT ''
+            observacoes TEXT DEFAULT ' '
         )
     ''')
     conn.commit()
@@ -164,8 +164,8 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Layout do Cabeçalho
-col_titulo, col_btn1, col_btn2 = st.columns()
+# Layout do Cabeçalho - RESOLVIDO: Definida a proporção exata para as colunas do topo
+col_titulo, col_btn1, col_btn2 = st.columns([6, 2, 2])
 
 with col_titulo:
     st.title("📋 Painel de Controle")
