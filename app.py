@@ -255,7 +255,6 @@ if not st.session_state["logado"]:
                     st.error("Usuário ou senha incorretos.")
                     
     with tab_cadastro:
-        # ATUALIZAÇÃO CRÍTICA: Campos soltos sem st.form para disparar o clique de forma nativa e imediata
         new_nome = st.text_input("Nome Completo:", key="reg_nome")
         new_cpf = st.text_input("CPF (Apenas números):", key="reg_cpf")
         new_nasc = st.text_input("Data de Nascimento (DD/MM/AAAA):", key="reg_nasc")
@@ -269,3 +268,5 @@ if not st.session_state["logado"]:
                 if new_user.strip().lower() == USER_MASTER:
                     st.error("Este nome de usuário é reservado ao administrador.")
                 else:
+                    cadastrou = cadastrar_usuario(new_user, new_pass, new_nome, new_cpf, new_nasc, new_fone)
+                    if cadastrou:
