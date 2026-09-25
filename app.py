@@ -135,7 +135,7 @@ def exibir_pdf(caminho_pdf):
 # Inicia o banco estruturado
 criar_banco()
 
-# 2. Interface Estilizada e Minimalista
+# 2. Interface Estilizada e Configuração Inicial
 st.set_page_config(layout="wide", page_title="Gestão de Fluxo", page_icon="📋")
 
 st.markdown("""
@@ -173,26 +173,6 @@ st.markdown("""
         display: flex;
         align-items: center;
         justify-content: center;
-    }
-    .caixa-pedido {
-        background-color: #ffffff;
-        border: 1px solid #e2e8f0;
-        border-top: 3px solid #FFD700;
-        padding: 12px;
-        border-radius: 4px;
-        margin-bottom: 8px;
-        box-shadow: 0px 1px 3px rgba(0, 0, 0, 0.05);
-    }
-    .id-pedido {
-        font-size: 13px;
-        font-weight: bold;
-        color: #1a202c;
-        margin-bottom: 2px;
-    }
-    .nome-cliente {
-        font-size: 13px;
-        color: #4a5568;
-        word-wrap: break-word;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -284,8 +264,15 @@ for idx_etapa, etapa in enumerate(etapas):
             for index, row in pedidos_fase.iterrows():
                 nome_exibicao = row['nome'] if row['nome'] else "Cliente não vinculado"
                 
-                # CARTÃO DO KANBAN TOTALMENTE CORRIGIDO E FECHADO
-                st.markdown(f"""
-                    <div class='caixa-pedido'>
-                        <div class='id-pedido'>PEDIDO #{int(row['id'])}</div>
-                        <div class='nome-cliente'>{nome_exibicao}</div>
+                # REESTRUTURAÇÃO NATIVA: Substituído o HTML complexo por blocos nativos empilhados
+                with st.container(border=True):
+                    st.markdown(f"**PEDIDO #{int(row['id'])}**")
+                    st.write(f"Cliente: {nome_exibicao}")
+                    st.caption(f"Autor: {row['autor']}")
+                    
+                    if st.button("🔍 Detalhes", key=f"detalhe_{int(row['id'])}", use_container_width=True):
+                        st.session_state.pedido_selecionado_id = int(row['id'])
+                        st.rerun()
+        else:
+            st.markdown("<p style='font-size:11px; color:#a0aec0; text-align:center;'>Nenhum pedido</p>", unsafe_allow_html=True)
+
