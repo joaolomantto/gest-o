@@ -6,7 +6,7 @@ import base64
 from datetime import datetime
 
 # 1. Configuração e Conexão com Banco de Dados SQLite
-DB_FILE = "sistema_agendor_v3.db"
+DB_FILE = "sistema_agendor_custom.db"
 UPLOAD_DIR = "arquivos_pedidos"
 
 # Cria a pasta para salvar os arquivos anexados, se não existir
@@ -27,7 +27,6 @@ def criar_banco():
             data_fundacao TEXT
         )
     ''')
-    # Tabela criada com a coluna ultima_atualizacao nativa
     c.execute('''
         CREATE TABLE IF NOT EXISTS pedidos (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -111,7 +110,7 @@ def exibir_pdf(caminho_pdf):
     try:
         with open(caminho_pdf, "rb") as f:
             base64_pdf = base64.b64encode(f.read()).decode('utf-8')
-        pdf_display = f'<iframe src="data:application/pdf;base64,{base64_pdf}" width="100%" height="500" type="application/pdf"></iframe>'
+        pdf_display = f'<iframe src="data:application/pdf;base64,{base64_pdf}" width="100%" height="400" type="application/pdf"></iframe>'
         st.markdown(pdf_display, unsafe_allow_html=True)
     except Exception as e:
         st.error(f"Erro ao carregar o arquivo PDF: {e}")
@@ -236,7 +235,7 @@ with criar_ped:
 
 st.markdown("---")
 
-# 3. Definição das 8 Colunas do Kanban (Fixas na tela)
+# 3. Definição das 8 Colunas do Kanban
 etapas = [
     "Pedido Criado", "Confirmar Pix", "Faturar Notas", 
     "Faturar Entregar e Receber", "Cliente vem Buscar", 
@@ -245,6 +244,10 @@ etapas = [
 
 colunas_quadro = st.columns(len(etapas))
 df_pedidos = carregar_fluxo()
+
+# Inicializa o estado do pedido selecionado se não existir
+if "pedido_selecionado_id" not in st.session_state:
+    st.session_state.pedido_selecionado_id = None
 
 for idx_etapa, etapa in enumerate(etapas):
     with colunas_quadro[idx_etapa]:
@@ -270,12 +273,10 @@ for idx_etapa, etapa in enumerate(etapas):
                     </div>
                 """, unsafe_allow_html=True)
                 
+                # Guarda estável o ID do pedido clicado para abrir fora do loop
                 if st.button("🔍 Detalhes", key=f"detalhe_{int(row['id'])}", use_container_width=True):
-                    st.session_state[f"modal_{int(row['id'])}"] = True
+                    st.session_state.pedido_selecionado_id = int(row['id'])
+                    st.rerun()
+        else:
+            st.markdown("<p style='font-size:11px; color:#a0aec0; text-align:center;'>Nenhum pedido</p>", unsafe_allow_html=True)
 
-                @st.dialog(f"Detalhes do Pedido #{int(row['id'])}", width="large")
-                def mostrar_detalhes(pedido_info):
-                    col_det1, col_det2 = st.columns([5, 5])
-                    
-                    with col_det1:
-                        st.subheader("📋 Informações Gerais")
