@@ -19,7 +19,6 @@ def criar_banco():
             data_fundacao TEXT
         )
     ''')
-    # CORREÇÃO DEFINITIVA: Removida a trava de FOREIGN KEY para aceitar qualquer pedido direto
     c.execute('''
         CREATE TABLE IF NOT EXISTS pedidos (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -65,7 +64,6 @@ def atualizar_pedido(id_ped, nova_etapa, novas_obs):
 
 def carregar_fluxo():
     conn = sqlite3.connect(DB_FILE)
-    # Busca todos os pedidos e traz o nome do cliente se ele existir no cadastro
     df = pd.read_sql_query('''
         SELECT p.id, p.documento_cliente, p.etapa, p.observacoes, 
                IFNULL(c.nome, p.documento_cliente) as nome, 
@@ -167,7 +165,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Layout do Cabeçalho
-col_titulo, col_btn1, col_btn2 = st.columns([6, 2, 2])
+col_titulo, col_btn1, col_btn2 = st.columns()
 
 with col_titulo:
     st.title("📋 Painel de Controle")
@@ -211,7 +209,7 @@ with criar_ped:
     if doc_busca:
         cliente_encontrado = buscar_cliente(doc_busca)
         if cliente_encontrado:
-            st.info(f"Cliente identificado: {cliente_encontrado[0]}")
+            st.info(f"Cliente identificado: {cliente_encontrado}")
             if st.button("Confirmar e Criar Pedido", type="primary", key="btn_criar_ped_com_cadastro"):
                 criar_novo_pedido(doc_busca)
                 st.success("Pedido enviado para 'Pedido Criado'!")
@@ -268,3 +266,7 @@ for idx_etapa, etapa in enumerate(etapas):
     with colunas_quadro[idx_etapa]:
         st.markdown(f"""
             <div class='topo-coluna'>
+                <span class='texto-topo'>{etapa.upper()}</span>
+            </div>
+        """, unsafe_allow_html=True)
+        
