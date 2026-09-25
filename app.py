@@ -3,6 +3,7 @@ import sqlite3
 import pandas as pd
 import os
 import base64
+import hashlib
 
 # 1. Configuração e Conexão com Banco de Dados SQLite
 DB_FILE = "sistema_agendor_custom.db"
@@ -11,6 +12,10 @@ UPLOAD_DIR = "arquivos_pedidos"
 # Cria a pasta para salvar os arquivos anexados, se não existir
 if not os.path.exists(UPLOAD_DIR):
     os.makedirs(UPLOAD_DIR)
+
+def gerará_hash_senha(senha):
+    """Criptografa a senha para salvar no banco de dados com segurança."""
+    return hashlib.sha256(senha.encode('utf-8')).hexdigest()
 
 def criar_banco():
     conn = sqlite3.connect(DB_FILE)
@@ -39,17 +44,20 @@ def criar_banco():
     c.execute('''
         CREATE TABLE IF NOT EXISTS usuarios (
             username TEXT PRIMARY KEY,
-            nome TEXT NOT NULL
+            nome TEXT NOT NULL,
+            senha_hash TEXT NOT NULL
         )
     ''')
     conn.commit()
     conn.close()
 
-def cadastrar_usuario(username, nome):
+def cadastrar_usuario(username, nome, senha):
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
+    senha_hash = gerará_hash_senha(senha)
     try:
-        c.execute("INSERT INTO usuarios (username, nome) VALUES (?, ?)", (username.strip().lower(), nome))
+        c.execute("INSERT INTO usuarios (username, nome, senha_hash) VALUES (?, ?, ?)", 
+                  (username.strip().lower(), nome, senha_hash))
         conn.commit()
         sucesso = True
     except sqlite3.IntegrityError:
@@ -57,10 +65,12 @@ def cadastrar_usuario(username, nome):
     conn.close()
     return sucesso
 
-def buscar_usuario(username):
+def verificar_login(username, senha):
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
-    c.execute("SELECT nome FROM usuarios WHERE username = ?", (username.strip().lower(),))
+    senha_hash = gerará_hash_senha(senha)
+    c.execute("SELECT nome FROM usuarios WHERE username = ? AND senha_hash = ?", 
+              (username.strip().lower(), senha_hash))
     res = c.fetchone()
     conn.close()
     return res
@@ -117,7 +127,6 @@ def carregar_fluxo():
     conn.close()
     return df
 
-# Função auxiliar para gerar visualização embutida de PDF
 def exibir_pdf(caminho_pdf):
     try:
         with open(caminho_pdf, "rb") as f:
@@ -132,51 +141,57 @@ criar_banco()
 # 2. Interface Estilizada e Configuração Inicial
 st.set_page_config(layout="wide", page_title="Gestão de Fluxo", page_icon="📋")
 
-# Controle de Sessão de Usuário (Login Simplificado)
+# Controle de Sessão de Usuário
 if "usuario" not in st.session_state:
     st.session_state.usuario = None
 if "usuario_nome" not in st.session_state:
     st.session_state.usuario_nome = None
 
-# Sidebar para Login / Cadastro
+# Sidebar Dinâmica para Autenticação
 with st.sidebar:
     st.header("👤 Autenticação")
     if not st.session_state.usuario:
-        aba_login, aba_cad = st.tabs(["Entrar", "Cadastrar-se"])
+        # Pergunta se já tem conta para alternar a tela automaticamente
+        ja_tem_conta = st.checkbox("Já tenho uma conta cadastrada", value=True)
         
-        with aba_login:
+        if ja_tem_conta:
+            st.subheader("Fazer Login")
             user_login = st.text_input("Usuário (Username):", key="login_user")
-            if st.button("Acessar Painel"):
-                dados_user = buscar_usuario(user_login)
+            senha_login = st.text_input("Senha:", type="password", key="login_senha")
+            
+            if st.button("Acessar Painel", type="primary", use_container_width=True):
+                dados_user = verificar_login(user_login, senha_login)
                 if dados_user:
                     st.session_state.usuario = user_login.strip().lower()
                     st.session_state.usuario_nome = dados_user[0]
                     st.success(f"Bem-vindo, {dados_user[0]}!")
                     st.rerun()
                 else:
-                    st.error("Usuário não encontrado. Cadastre-se primeiro.")
-                    
-        with aba_cad:
+                    st.error("Usuário ou senha incorretos.")
+        else:
+            st.subheader("Criar Novo Cadastro")
             new_user = st.text_input("Escolha um Username:", key="cad_user")
             new_nome = st.text_input("Seu Nome Completo:", key="cad_nome")
-            if st.button("Criar Conta"):
-                if new_user and new_nome:
-                    if cadastrar_usuario(new_user, new_nome):
-                        st.success("Cadastro realizado! Use a aba 'Entrar'.")
+            new_senha = st.text_input("Defina uma Senha:", type="password", key="cad_senha")
+            
+            if st.button("Registrar Conta", use_container_width=True):
+                if new_user and new_nome and new_senha:
+                    if cadastrar_usuario(new_user, new_nome, new_senha):
+                        st.success("Cadastro realizado com sucesso! Marque a caixa acima para fazer login.")
                     else:
-                        st.error("Username já está em uso.")
+                        st.error("Este Username já está em uso.")
                 else:
-                    st.error("Preencha todos os campos.")
+                    st.error("Por favor, preencha todos os campos do cadastro.")
     else:
         st.write(f"Conectado como: **{st.session_state.usuario_nome}** (`{st.session_state.usuario}`)")
-        if st.button("Sair / Trocar Usuário"):
+        if st.button("Sair / Desconectar", use_container_width=True):
             st.session_state.usuario = None
             st.session_state.usuario_nome = None
             st.rerun()
 
-# Se não estiver logado, bloqueia o painel principal
+# Se não houver sessão ativa, interrompe a execução do Kanban
 if not st.session_state.usuario:
-    st.warning("⚠️ Por favor, faça login ou cadastre-se na barra lateral esquerda para acessar o painel.")
+    st.warning("⚠️ Faça login na barra lateral para carregar as informações do sistema.")
     st.stop()
 
 # Estilos CSS Customizados
@@ -266,20 +281,3 @@ with criar_cad:
                     st.success("Cliente PF Cadastrado!")
                     st.rerun()
         else:
-            nome_emp = st.text_input("Nome da Empresa:")
-            cnpj = st.text_input("CNPJ:")
-            dt_fund = st.text_input("Data de Fundação (DD/MM/AAAA):")
-            if st.form_submit_button("Salvar Empresa"):
-                if nome_emp and cnpj:
-                    salvar_cliente(cnpj, "PJ", nome_emp, dt_fund=dt_fund)
-                    st.success("Cliente PJ Cadastrado!")
-                    st.rerun()
-
-with criar_ped:
-    st.markdown("<p style='color:black; font-weight:bold;'>Novo Pedido</p>", unsafe_allow_html=True)
-    doc_busca = st.text_input("Digite o CPF ou CNPJ do Cliente:")
-    if doc_busca:
-        cliente_encontrado = buscar_cliente(doc_busca)
-        if cliente_encontrado:
-            st.info(f"Cliente identificado: {cliente_encontrado[0]}")
-            # Vincula o criador automaticamente ao usuário ativo logado
