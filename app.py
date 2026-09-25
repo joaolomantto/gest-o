@@ -75,6 +75,9 @@ def carregar_fluxo():
 
 criar_banco()
 
+# Lista global com as 8 etapas para evitar erros de repetição
+ETAPAS_GLOBAL = ["Pedido Criado", "Confirmar Pix", "Faturar Notas", "Faturar Entregar e Receber", "Cliente vem Buscar", "Entregas via Tecar", "Transportadora", "Pedido Finalizado"]
+
 # Inicialização de controle de janelas na memória do navegador
 if "pedido_selecionado" not in st.session_state:
     st.session_state.pedido_selecionado = None
@@ -84,7 +87,7 @@ if "aba_aberta" not in st.session_state:
 # 2. Interface Estilizada Dinâmica
 st.set_page_config(layout="wide", page_title="Gestão de Fluxo", page_icon="📋")
 
-# Injeção de CSS para Corrigir Espaçamento e Forçar Fundo Branco e Textos Pretos
+# Injeção de CSS para Forçar Fundo Branco, Textos Pretos e Alinhamento Correto
 st.markdown("""
     <style>
     /* Força o fundo geral para BRANCO puro e texto para PRETO */
@@ -259,9 +262,4 @@ if st.session_state.pedido_selecionado is not None:
         novas_obs = st.text_area("Adicionar Informações / Histórico Manual:", value=row['observacoes'], key=f"edit_obs_{row['id']}")
         
         arquivo = st.file_uploader("Anexar Arquivos / Notas:", key=f"edit_file_{row['id']}")
-        if arquivo:
-            st.caption(f"📎 Arquivo anexado: {arquivo.name}")
-            
-        etapas_lista = [
-            "Pedido Criado", "Confirmar Pix", "Faturar Notas", 
 
