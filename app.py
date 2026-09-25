@@ -64,16 +64,17 @@ def criar_banco():
     conn.commit()
     conn.close()
 
-def cadastrar_usuario(usuario, senha, nome, cpf, dt_nasc, telephone):
+def cadastrar_usuario(usuario, senha, nome, cpf, dt_nasc, telefone):
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
     try:
         usuario_limpo = usuario.strip().lower()
         c.execute("DELETE FROM usuarios WHERE usuario = ?", (usuario_limpo,))
+        # CORREÇÃO: Alinhado o nome do campo do INSERT para 'telefone' idêntico ao banco de dados
         c.execute('''
             INSERT INTO usuarios (usuario, senha, nome, cpf, data_nascimento, telefone, autorizado)
             VALUES (?, ?, ?, ?, ?, ?, 'PENDENTE')
-        ''', (usuario_limpo, senha, nome, cpf, dt_nasc, telephone))
+        ''', (usuario_limpo, senha, nome, cpf, dt_nasc, telefone))
         conn.commit()
         sucesso = True
     except Exception:
@@ -88,9 +89,10 @@ def checar_status_usuario(usuario):
     res = c.fetchone()
     conn.close()
     if res:
-        return res
+        return res[0]
     return "PENDENTE"
 
+# CORREÇÃO CRÍTICA: Adicionado o campo 'autorizado' na busca para que a validação de sessão funcione
 def realizar_login(usuario, senha):
     usuario_limpo = usuario.strip().lower()
     
@@ -104,7 +106,7 @@ def realizar_login(usuario, senha):
     conn.close()
     
     if res:
-        return {"usuario": usuario_limpo, "nome": res, "status": res}
+        return {"usuario": usuario_limpo, "nome": res[0], "status": res[1]}
     return None
 
 def listar_usuarios_pendentes():
@@ -262,8 +264,4 @@ if not st.session_state["logado"]:
                 elif not usuario_valido:
                     st.error("Este nome de usuário é reservado ao administrador.")
                 else:
-                    # ESTRUTURA BLINDADA LINEAR: Grava direto eliminando qualquer else subsequente
                     cadastrar_usuario(new_user, new_pass, new_nome, new_cpf, new_nasc, new_fone)
-                    st.success("🎯 Conta criada com sucesso! Vá para a aba '🔒 Acessar Minha Conta' acima e faça seu login.")
-    st.stop()
-
