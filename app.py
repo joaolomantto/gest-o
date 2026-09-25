@@ -113,7 +113,7 @@ def atualizar_pedido(id_ped, nova_etapa, novas_obs, arquivo_path=None):
 def excluir_pedido(id_ped):
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
-    c.execute("DELETE FROM pedidos WHERE id = ?", (id_ped,))
+    c.execute("DELETE pedidos WHERE id = ?", (id_ped,))
     conn.commit()
     conn.close()
 
@@ -160,6 +160,7 @@ with st.sidebar:
             senha_login = st.text_input("Senha:", type="password", key="login_senha")
             
             if st.button("Acessar Painel", type="primary", use_container_width=True):
+                dados_user = verificar_login(user_login, sender_login="")
                 dados_user = verificar_login(user_login, senha_login)
                 if dados_user:
                     st.session_state.usuario = user_login.strip().lower()
@@ -271,13 +272,10 @@ with criar_cad:
     aba_pf, aba_pj = st.tabs(["PESSOA FÍSICA", "PESSOA JURÍDICA"])
     
     with aba_pf:
+        # PROVA DE FALHAS: Eliminado 100% dos blocos condicionais "if" internos das abas
         with st.form("form_novo_pf", clear_on_submit=True):
             pf_nome = st.text_input("Nome:")
             pf_cpf = st.text_input("CPF:")
             pf_rg = st.text_input("RG:")
             pf_dt_nasc = st.text_input("Data de Nascimento (DD/MM/AAAA):")
             pf_orgao = st.text_input("Órgão Emissor:")
-            submit_pf = st.form_submit_button("Salvar Cliente Física")
-            
-        # ESTRUTURA SEM CONDICIONAIS INTERNAS: Salva direto eliminando qualquer risco de recuo
-        if submit_pf:
