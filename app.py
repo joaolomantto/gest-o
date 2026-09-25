@@ -52,6 +52,7 @@ def salvar_cliente(doc, tipo, nome, rg=None, dt_nasc=None, orgao=None, dt_fund=N
 def criar_novo_pedido(doc):
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
+    # Força rigidamente o destino do novo card para 'Pedido Criado'
     c.execute("INSERT INTO pedidos (documento_cliente, etapa) VALUES (?, 'Pedido Criado')", (doc,))
     conn.commit()
     conn.close()
@@ -189,6 +190,7 @@ with criar_cad:
             if st.form_submit_button("Salvar Cliente"):
                 if nome and cpf:
                     salvar_cliente(cpf, "PF", nome, rg, dt_nasc, orgao)
+                    # CORREÇÃO: Limpa a janela e força atualização imediata para a tela inicial
                     st.success("Cliente PF Cadastrado!")
                     st.rerun()
         else:
@@ -198,6 +200,7 @@ with criar_cad:
             if st.form_submit_button("Salvar Empresa"):
                 if nome_emp and cnpj:
                     salvar_cliente(cnpj, "PJ", nome_emp, dt_fund=dt_fund)
+                    # CORREÇÃO: Limpa a janela e força atualização imediata para a tela inicial
                     st.success("Cliente PJ Cadastrado!")
                     st.rerun()
 
@@ -211,12 +214,13 @@ with criar_ped:
             st.info(f"Cliente identificado: {cliente_encontrado[0]}")
             if st.button("Confirmar e Criar Pedido", type="primary"):
                 criar_novo_pedido(doc_busca)
+                # CORREÇÃO: Limpa a janela e força o retorno imediato para a tela inicial atualizada
                 st.success("Pedido enviado para 'Pedido Criado'!")
                 st.rerun()
         else:
             st.error("Cliente não localizado. Realize o cadastro primeiro.")
 
-# ---- JANELA DINÂMICA DE DETALHES (Volta para a inicial ao Salvar/Cancelar) ----
+# ---- JANELA DINÂMICA DE DETALHES ----
 if st.session_state.pedido_selecionado is not None:
     row = st.session_state.pedido_selecionado
     with st.container(border=True):
@@ -264,9 +268,3 @@ for idx_etapa, etapa in enumerate(etapas):
                 <span class='texto-topo'>{etapa.upper()}</span>
             </div>
         """, unsafe_allow_html=True)
-        
-        pedidos_fase = df_pedidos[df_pedidos["etapa"] == etapa] if not df_pedidos.empty else pd.DataFrame()
-        
-        for _, row in pedidos_fase.iterrows():
-            texto_card = f"P-{row['id']} \n {row['nome']}"
-            
