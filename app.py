@@ -2,8 +2,6 @@ import streamlit as st
 import sqlite3
 import pandas as pd
 import os
-import base64
-from datetime import datetime
 
 # 1. Configuração e Conexão com Banco de Dados SQLite
 DB_FILE = "sistema_agendor_custom.db"
@@ -32,26 +30,12 @@ def criar_banco():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             documento_cliente TEXT NOT NULL,
             etapa TEXT NOT NULL,
-            observacoes TEXT DEFAULT '',
-            arquivo_caminho TEXT DEFAULT '',
-            autor TEXT DEFAULT 'Não informado',
-            ultima_atualizacao TEXT DEFAULT ''
+            observacoes TEXT DEFAULT ''
         )
     ''')
     
-    # Adiciona colunas de migração se o banco já existia antigo de forma segura
     try:
         c.execute("ALTER TABLE pedidos ADD COLUMN arquivo_caminho TEXT DEFAULT ''")
-    except sqlite3.OperationalError:
-        pass
-
-    try:
-        c.execute("ALTER TABLE pedidos ADD COLUMN autor TEXT DEFAULT 'Não informado'")
-    except sqlite3.OperationalError:
-        pass
-
-    try:
-        c.execute("ALTER TABLE pedidos ADD COLUMN ultima_atualizacao TEXT DEFAULT ''")
     except sqlite3.OperationalError:
         pass
         
@@ -76,33 +60,20 @@ def salvar_cliente(doc, tipo, nome, rg=None, dt_nasc=None, orgao=None, dt_fund=N
     conn.commit()
     conn.close()
 
-def criar_novo_pedido(doc, autor):
+def criar_novo_pedido(doc):
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
-    agora = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
-    c.execute('''
-        INSERT INTO pedidos (documento_cliente, etapa, autor, ultima_atualizacao) 
-        VALUES (?, 'Pedido Criado', ?, ?)
-    ''', (doc, autor, agora))
+    c.execute("INSERT INTO pedidos (documento_cliente, etapa) VALUES (?, 'Pedido Criado')", (doc,))
     conn.commit()
     conn.close()
 
 def atualizar_pedido(id_ped, nova_etapa, novas_obs, arquivo_path=None):
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
-    agora = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
     if arquivo_path:
-        c.execute('''
-            UPDATE pedidos 
-            SET etapa = ?, observacoes = ?, arquivo_caminho = ?, ultima_atualizacao = ? 
-            WHERE id = ?
-        ''', (nova_etapa, novas_obs, arquivo_path, agora, id_ped))
+        c.execute("UPDATE pedidos SET etapa = ?, observacoes = ?, arquivo_caminho = ? WHERE id = ?", (nova_etapa, novas_obs, arquivo_path, id_ped))
     else:
-        c.execute('''
-            UPDATE pedidos 
-            SET etapa = ?, observacoes = ?, ultima_atualizacao = ? 
-            WHERE id = ?
-        ''', (nova_etapa, novas_obs, agora, id_ped))
+        c.execute("UPDATE pedidos SET etapa = ?, observacoes = ? WHERE id = ?", (nova_etapa, novas_obs, id_ped))
     conn.commit()
     conn.close()
 
@@ -116,26 +87,16 @@ def excluir_pedido(id_ped):
 def carregar_fluxo():
     conn = sqlite3.connect(DB_FILE)
     df = pd.read_sql_query('''
-        SELECT p.id, p.documento_cliente, p.etapa, p.observacoes, p.arquivo_caminho, p.autor, p.ultima_atualizacao, c.nome, c.tipo
+        SELECT p.id, p.documento_cliente, p.etapa, p.observacoes, p.arquivo_caminho, c.nome, c.tipo
         FROM pedidos p
-        LEFT JOIN clientes c ON p.documento_cliente = c.documento
+        JOIN clientes c ON p.documento_cliente = c.documento
     ''', conn)
     conn.close()
     return df
 
-def exibir_pdf(caminho_pdf):
-    try:
-        with open(caminho_pdf, "rb") as f:
-            base64_pdf = base64.b64encode(f.read()).decode('utf-8')
-        pdf_display = f'<iframe src="data:application/pdf;base64,{base64_pdf}" width="100%" height="400" type="application/pdf"></iframe>'
-        st.markdown(pdf_display, unsafe_allow_html=True)
-    except Exception as e:
-        st.error(f"Erro ao carregar o arquivo PDF: {e}")
-
-# Inicia o banco estruturado
 criar_banco()
 
-# 2. Interface Estilizada e Configuração Inicial
+# 2. Interface Estilizada e Minimalista
 st.set_page_config(layout="wide", page_title="Gestão de Fluxo", page_icon="📋")
 
 st.markdown("""
@@ -150,18 +111,22 @@ st.markdown("""
         color: #000000 !important;
         font-weight: bold !important;
     }
+    
     div[data-testid="stHorizontalBlock"] {
         align-items: stretch !important;
     }
+    
     div[data-testid="column"] {
         padding-right: 10px !important;
         padding-left: 10px !important;
         border-right: 1px solid #e2e8f0 !important;
         min-height: 80vh !important;
     }
+    
     div[data-testid="column"]:last-child {
         border-right: none !important;
     }
+    
     .topo-coluna {
         background-color: #f8fafc;
         padding: 6px;
@@ -174,10 +139,32 @@ st.markdown("""
         align-items: center;
         justify-content: center;
     }
+    
+    .caixa-pedido {
+        background-color: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-top: 3px solid #FFD700;
+        padding: 12px;
+        border-radius: 4px;
+        margin-bottom: 4px;
+        box-shadow: 0px 1px 3px rgba(0, 0, 0, 0.05);
+    }
+    
+    .id-pedido {
+        font-size: 13px;
+        font-weight: bold;
+        color: #1a202c;
+        margin-bottom: 2px;
+    }
+    
+    .nome-cliente {
+        font-size: 13px;
+        color: #4a5568;
+        word-wrap: break-word;
+    }
     </style>
 """, unsafe_allow_html=True)
 
-# CORREÇÃO CRÍTICA: Definida as proporções estáveis da linha de cabeçalho
 col_titulo, col_btn1, col_btn2 = st.columns([6, 2, 2])
 
 with col_titulo:
@@ -220,15 +207,11 @@ with criar_ped:
     if doc_busca:
         cliente_encontrado = buscar_cliente(doc_busca)
         if cliente_encontrado:
-            st.info(f"Cliente identificado: {cliente_encontrado}")
-            autor_input = st.text_input("Seu Nome (Dono do Pedido):", key="novo_autor_pedido")
+            st.info(f"Cliente identificado: {cliente_encontrado[0]}")
             if st.button("Confirmar e Criar Pedido", type="primary"):
-                if autor_input.strip() != "":
-                    criar_novo_pedido(doc_busca, autor_input.strip().lower())
-                    st.success("Pedido enviado para 'Pedido Criado'!")
-                    st.rerun()
-                else:
-                    st.error("Por favor, preencha o seu nome.")
+                criar_novo_pedido(doc_busca)
+                st.success("Pedido enviado para 'Pedido Criado'!")
+                st.rerun()
         else:
             st.error("Cliente não localizado. Realize o cadastro primeiro.")
 
@@ -244,10 +227,6 @@ etapas = [
 colunas_quadro = st.columns(len(etapas))
 df_pedidos = carregar_fluxo()
 
-# Mantém estável o estado do ID clicado na sessão
-if "pedido_selecionado_id" not in st.session_state:
-    st.session_state.pedido_selecionado_id = None
-
 for idx_etapa, etapa in enumerate(etapas):
     with colunas_quadro[idx_etapa]:
         st.markdown(f"""
@@ -256,24 +235,47 @@ for idx_etapa, etapa in enumerate(etapas):
             </div>
         """, unsafe_allow_html=True)
         
-        if not df_pedidos.empty:
-            pedidos_fase = df_pedidos[(df_pedidos['etapa'] == etapa) & (df_pedidos['id'].notna())]
-        else:
-            pedidos_fase = pd.DataFrame()
+        pedidos_fase = df_pedidos[df_pedidos["etapa"] == etapa] if not df_pedidos.empty else pd.DataFrame()
+        
+        for _, row in pedidos_fase.iterrows():
+            st.markdown(f"""
+                <div class='caixa-pedido'>
+                    <div class='id-pedido'>P-{row['id']}</div>
+                    <div class='nome-cliente'>{row['nome']}</div>
+                </div>
+            """, unsafe_allow_html=True)
             
-        if not pedidos_fase.empty:
-            for index, row in pedidos_fase.iterrows():
-                nome_exibicao = row['nome'] if row['nome'] else "Cliente não vinculado"
+            # Detalhes do pedido (Popover)
+            with st.popover("⚙️ Detalhes / Opções", use_container_width=True):
+                st.write(f"**Pedido:** P-{row['id']}")
+                st.write(f"**Cliente:** {row['nome']} ({row['documento_cliente']})")
+                st.info(row['observacoes'] if row['observacoes'] else "Sem informações adicionadas.")
                 
-                with st.container(border=True):
-                    st.markdown(f"**PEDIDO #{int(row['id'])}**")
-                    st.write(f"Cliente: {nome_exibicao}")
-                    st.caption(f"Autor: {row['autor']}")
-                    
-                    if st.button("🔍 Detalhes", key=f"detalhe_{int(row['id'])}", use_container_width=True):
-                        st.session_state.pedido_selecionado_id = int(row['id'])
+                if row['arquivo_caminho']:
+                    nome_arquivo = os.path.basename(row['arquivo_caminho'])
+                    st.markdown(f"📎 **Arquivo Anexado:** `{nome_arquivo}`")
+                
+                st.markdown("---")
+                
+                arquivo_carregado = st.file_uploader("Adicionar / Substituir Arquivos:", key=f"file_{row['id']}")
+                
+                nova_fase = st.selectbox("Mover para etapa:", etapas, index=etapas.index(row['etapa']), key=f"fase_{row['id']}")
+                novas_obs = st.text_area("Observações do pedido:", value=row['observacoes'], key=f"obs_{row['id']}")
+                
+                col_salvar, col_excluir = st.columns(2)
+                
+                with col_salvar:
+                    if st.button("Salvar Mudanças", key=f"btn_salvar_{row['id']}", type="primary", use_container_width=True):
+                        caminho_salvo = None
+                        if arquivo_carregado is not None:
+                            caminho_salvo = os.path.join(UPLOAD_DIR, f"pedido_{row['id']}_{arquivo_carregado.name}")
+                            with open(caminho_salvo, "wb") as f:
+                                f.write(arquivo_carregado.getbuffer())
+                        
+                        atualizar_pedido(row['id'], nova_fase, novas_obs, caminho_salvo)
                         st.rerun()
-        else:
-            st.markdown("<p style='font-size:11px; color:#a0aec0; text-align:center;'>Nenhum pedido</p>", unsafe_allow_html=True)
-
-# 4. Função do Modal declarada fora e de forma estável na raiz
+                        
+                with col_excluir:
+                    if st.button("🚫 Excluir Pedido", key=f"btn_excluir_{row['id']}", type="secondary", use_container_width=True):
+                        excluir_pedido(row['id'])
+                        st.rerun()
