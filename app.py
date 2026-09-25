@@ -78,55 +78,71 @@ criar_banco()
 # 2. Interface Estilizada e Minimalista
 st.set_page_config(layout="wide", page_title="Gestão de Fluxo", page_icon="📋")
 
-# Injeção de CSS para divisórias verticais e caixinhas quadradas (estilo Agendor)
+# Injeção de CSS Avançado para fazer a linha ir até o final da tela
 st.markdown("""
     <style>
     div[data-testid="stExpander"] { border: none !important; box-shadow: none !important; }
     
-    /* Configuração e linha divisória das colunas */
+    /* Força o container das colunas a ocupar espaço vertical e exibe as divisórias contínuas */
+    div[data-testid="stHorizontalBlock"] {
+        align-items: stretch !important;
+    }
+    
     div[data-testid="column"] {
         padding-right: 15px !important;
-        padding-left: 5px !important;
-        border-right: 1px solid #e0e0e0 !important;
+        padding-left: 15px !important;
+        border-right: 1px solid #e2e8f0 !important; /* Linha cinza clara idêntica ao Agendor */
+        min-height: 80vh !important; /* Estende a coluna e a linha até embaixo na tela */
     }
-    /* Remove a borda da última coluna para não sobrar traço no canto da tela */
+    
+    /* Remove a linha da última coluna para não sobrar traço no canto direito */
     div[data-testid="column"]:last-child {
         border-right: none !important;
+    }
+    
+    /* Cabeçalho cinza minimalista para as etapas */
+    .topo-coluna {
+        background-color: #f8fafc;
+        padding: 8px;
+        border-radius: 4px;
+        text-align: center;
+        margin-bottom: 15px;
+        border: 1px solid #edf2f7;
     }
     
     /* Caixinha quadrada do pedido (Estilo Agendor) */
     .caixa-pedido {
         background-color: #ffffff;
-        border: 1px solid #e0e0e0;
-        border-top: 3px solid #FFD700; /* Detalhe amarelo no topo do card */
+        border: 1px solid #e2e8f0;
+        border-top: 3px solid #FFD700; /* Detalhe em amarelo */
         padding: 12px;
         border-radius: 4px;
         margin-bottom: 8px;
-        box-shadow: 0px 1px 3px rgba(0,0,0,0.05);
+        box-shadow: 0px 1px 3px rgba(0, 0, 0, 0.05);
     }
     
     .id-pedido {
         font-size: 13px;
         font-weight: bold;
-        color: #333333;
+        color: #1a202c;
         margin-bottom: 2px;
     }
     
     .nome-cliente {
         font-size: 13px;
-        color: #666666;
+        color: #4a5568;
         word-wrap: break-word;
     }
     </style>
 """, unsafe_allow_html=True)
 
 # Layout do Cabeçalho
-col_titulo, col_btn1, col_btn2 = st.columns([6, 2, 2])
+col_titulo, col_btn1, col_btn2 = st.columns()
 
 with col_titulo:
     st.title("📋 Painel de Controle")
 
-# Botões superiores amarelos integrados de forma minimalista
+# Botões superiores amarelos integrados
 with col_btn1:
     criar_cad = st.expander("👤 Criar Cadastro")
 with col_btn2:
@@ -188,9 +204,12 @@ df_pedidos = carregar_fluxo()
 
 for idx_etapa, etapa in enumerate(etapas):
     with colunas_quadro[idx_etapa]:
-        # Título alinhado e limpo para cada fase
-        st.markdown(f"<p style='font-size:12px; font-weight:bold; margin-bottom:2px; color:#444444; text-align:center;'>{etapa.upper()}</p>", unsafe_allow_html=True)
-        st.markdown("<div style='margin-bottom:12px;'></div>", unsafe_allow_html=True)
+        # Caixa de título estilizada para cada coluna do topo
+        st.markdown(f"""
+            <div class='topo-coluna'>
+                <b style='font-size:11px; color:#2d3748;'>{etapa.upper()}</b>
+            </div>
+        """, unsafe_allow_html=True)
         
         pedidos_fase = df_pedidos[df_pedidos["etapa"] == etapa] if not df_pedidos.empty else pd.DataFrame()
         
@@ -222,5 +241,6 @@ for idx_etapa, etapa in enumerate(etapas):
                     atualizar_pedido(row['id'], nova_fase, novas_obs)
                     st.success("Pedido Atualizado!")
                     st.rerun()
+
 
 
