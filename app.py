@@ -168,7 +168,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# CORREÇÃO AQUI: Adicionado o número de colunas proporcional de volta para resolver o TypeError
+# Define as 3 colunas principais para alinhar os botões superiores
 col_titulo, col_btn1, col_btn2 = st.columns([6, 2, 2])
 
 with col_titulo:
@@ -221,7 +221,7 @@ with criar_ped:
 
 st.markdown("---")
 
-# 3. Definição das 8 Colunas
+# 3. Definição das 8 Colunas do Kanban
 etapas = [
     "Pedido Criado", "Confirmar Pix", "Faturar Notas", 
     "Faturar Entregar e Receber", "Cliente vem Buscar", 
@@ -249,6 +249,7 @@ for idx_etapa, etapa in enumerate(etapas):
                 </div>
             """, unsafe_allow_html=True)
             
+            # Botões rápidos para mover o card lateralmente sem abrir os detalhes
             col_esq, col_dir = st.columns(2)
             with col_esq:
                 if idx_etapa > 0:
@@ -261,6 +262,7 @@ for idx_etapa, etapa in enumerate(etapas):
                         atualizar_etapa_rapida(row['id'], etapas[idx_etapa + 1])
                         st.rerun()
             
+            # Janela de Detalhes (Popover)
             with st.popover("⚙️ Detalhes / Opções", use_container_width=True):
                 st.write(f"**Pedido:** P-{row['id']}")
                 st.write(f"**Cliente:** {row['nome']} ({row['documento_cliente']})")
@@ -277,6 +279,4 @@ for idx_etapa, etapa in enumerate(etapas):
                 nova_fase = st.selectbox("Mover para etapa:", etapas, index=etapas.index(row['etapa']), key=f"fase_{row['id']}")
                 novas_obs = st.text_area("Observações do pedido:", value=row['observacoes'], key=f"obs_{row['id']}")
                 
-                col_salvar, col_excluir = st.columns(2)
-                
-                with col_salvar:
+                # Divisão de botões internos (Salvar e Excluir)
