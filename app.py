@@ -8,7 +8,6 @@ import base64
 DB_FILE = "sistema_agendor_custom.db"
 UPLOAD_DIR = "arquivos_pedidos"
 
-# Credenciais fixas do Chefe Supremo
 USER_MASTER = "admintecar.renault"
 SENHA_MASTER = "admin123"
 
@@ -18,6 +17,8 @@ if not os.path.exists(UPLOAD_DIR):
 def criar_banco():
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
+    
+    # Garante a criação segura das tabelas base
     c.execute('''
         CREATE TABLE IF NOT EXISTS clientes (
             documento TEXT PRIMARY KEY,
@@ -37,6 +38,14 @@ def criar_banco():
             observacoes TEXT DEFAULT ''
         )
     ''')
+    
+    # CORREÇÃO CRÍTICA: Se a tabela usuários antiga existir com a estrutura errada, reconstrói ela do zero de forma segura
+    try:
+        c.execute("SELECT usuario FROM usuarios LIMIT 1")
+    except sqlite3.OperationalError:
+        # Se cair aqui, significa que a tabela antiga usava 'cpf' como chave primária. Vamos recriá-la no formato correto.
+        c.execute("DROP TABLE IF EXISTS usuarios")
+        
     c.execute('''
         CREATE TABLE IF NOT EXISTS usuarios (
             usuario TEXT PRIMARY KEY,
@@ -49,18 +58,7 @@ def criar_banco():
         )
     ''')
     
-    try:
-        c.execute("ALTER TABLE usuarios ADD COLUMN usuario TEXT")
-    except sqlite3.OperationalError:
-        pass
-    try:
-        c.execute("ALTER TABLE usuarios ADD COLUMN senha TEXT")
-    except sqlite3.OperationalError:
-        pass
-    try:
-        c.execute("ALTER TABLE usuarios ADD COLUMN autorizado TEXT DEFAULT 'PENDENTE'")
-    except sqlite3.OperationalError:
-        pass
+    # Atualização de colunas auxiliares na tabela de pedidos
     try:
         c.execute("ALTER TABLE pedidos ADD COLUMN arquivo_caminho TEXT DEFAULT ''")
     except sqlite3.OperationalError:
@@ -77,11 +75,12 @@ def cadastrar_usuario(usuario, senha, nome, cpf, dt_nasc, telephone):
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
     try:
-        c.execute("DELETE FROM usuarios WHERE usuario = ?", (usuario.strip().lower(),))
+        usuario_limpo = usuario.strip().lower()
+        c.execute("DELETE FROM usuarios WHERE usuario = ?", (usuario_limpo,))
         c.execute('''
-            INSERT INTO usuarios (usuario, senha, nome, cpf, data_nascimento, telephone, autorizado)
+            INSERT INTO usuarios (usuario, senha, nome, cpf, data_nascimento, telefone, autorizado)
             VALUES (?, ?, ?, ?, ?, ?, 'PENDENTE')
-        ''', (usuario.strip().lower(), senha, nome, cpf, dt_nasc, telephone))
+        ''', (usuario_limpo, senha, nome, cpf, dt_nasc, telephone))
         conn.commit()
         sucesso = True
     except Exception:
@@ -96,7 +95,7 @@ def checar_status_usuario(usuario):
     res = c.fetchone()
     conn.close()
     if res:
-        return res
+        return res[0]
     return "PENDENTE"
 
 def realizar_login(usuario, senha):
@@ -112,12 +111,12 @@ def realizar_login(usuario, senha):
     conn.close()
     
     if res:
-        return {"usuario": usuario_limpo, "nome": res, "status": res}
+        return {"usuario": usuario_limpo, "nome": res[0], "status": res[1]}
     return None
 
 def listar_usuarios_pendentes():
     conn = sqlite3.connect(DB_FILE)
-    df = pd.read_sql_query("SELECT usuario, nome, cpf, telephone FROM usuarios WHERE autorizado = 'PENDENTE'", conn)
+    df = pd.read_sql_query("SELECT usuario, nome, cpf, telefone FROM usuarios WHERE autorizado = 'PENDENTE'", conn)
     conn.close()
     return df
 
@@ -125,7 +124,7 @@ def julgar_usuario(usuario, decisao):
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
     novo_status = "APROVADO" if decisao == "ACEITAR" else "RECUSADO"
-    c.execute("UPDATE usuarios SET autorizado = ? WHERE usuario = ?", (novo_status, usuario))
+    c.execute("UPDATE usuarios SET autorizado = ? WHERE usuario = ?", (novo_status, usuario.strip().lower()))
     conn.commit()
     conn.close()
 
@@ -259,7 +258,6 @@ if not st.session_state["logado"]:
         new_pass = st.text_input("Defina sua Senha de Acesso:", type="password", key="reg_pass")
         
         if st.button("🚀 Cadastrar e Solicitar Permissão", use_container_width=True, type="primary"):
-            # REESTRUTURAÇÃO COMPLETA: Validações independentes em blocos if isolados
             if not (new_nome and new_cpf and new_nasc and new_fone and new_user and new_pass):
                 st.error("Preencha todos os campos do formulário para concluir.")
                 st.stop()
