@@ -266,19 +266,18 @@ with col_btn2:
 
 with criar_cad:
     st.markdown("<p style='color:black; font-weight:bold;'>Novo Cliente</p>", unsafe_allow_html=True)
-    tipo_pess = st.radio("Tipo de Pessoa", ["PESSOA FÍSICA", "PESSOA JURÍDICA"], horizontal=True)
     
-    with st.form("form_cliente", clear_on_submit=True):
-        if tipo_pess == "PESSOA FÍSICA":
+    # Divisão limpa em sub-abas nativas para remover IF/ELSE complexos de layout
+    aba_pf, aba_pj = st.tabs(["PESSOA FÍSICA", "PESSOA JURÍDICA"])
+    
+    with aba_pf:
+        with st.form("form_cliente_pf", clear_on_submit=True):
             pf_nome = st.text_input("Nome:")
             pf_cpf = st.text_input("CPF:")
             pf_rg = st.text_input("RG:")
             pf_dt_nasc = st.text_input("Data de Nascimento (DD/MM/AAAA):")
             pf_orgao = st.text_input("Órgão Emissor:")
             
-            if st.form_submit_button("Salvar Cliente"):
+            if st.form_submit_button("Salvar Cliente Física"):
                 if pf_nome and pf_cpf:
                     salvar_cliente(pf_cpf, "PF", pf_nome, pf_rg, pf_dt_nasc, pf_orgao)
-                    st.success("Cliente PF Cadastrado!")
-                    st.rerun()
-                else:
