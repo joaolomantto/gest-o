@@ -254,7 +254,6 @@ if not st.session_state["logado"]:
             new_user = st.text_input("Escolha um Nome de Usuário (Para o login):")
             new_pass = st.text_input("Defina sua Senha de Acesso:", type="password")
             
-            # CORREÇÃO DEFINITIVA: Remoção completa de condicionais aninhadas perigosas
             enviar_dados = st.form_submit_button("🚀 Cadastrar e Solicitar Permissão", use_container_width=True)
             
             if enviar_dados:
@@ -265,6 +264,6 @@ if not st.session_state["logado"]:
                     st.error("Preencha todos os campos do formulário para concluir.")
                 elif not usuario_valido:
                     st.error("Este nome de usuário é reservado ao administrador.")
+                elif cadastrar_usuario(new_user, new_pass, new_nome, new_cpf, new_nasc, new_fone):
+                    st.success("🎯 Conta criada com sucesso! Vá para a aba '🔒 Acessar Minha Conta' acima e faça seu login.")
                 else:
-                    resultado_banco = cadastrar_usuario(new_user, new_pass, new_nome, new_cpf, new_nasc, new_fone)
-                    if resultado_banco:
