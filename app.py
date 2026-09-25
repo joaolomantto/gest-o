@@ -8,7 +8,6 @@ DB_FILE = "sistema_agendor_custom.db"
 def criar_banco():
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
-    # Tabela de Clientes (PF e PJ)
     c.execute('''
         CREATE TABLE IF NOT EXISTS clientes (
             documento TEXT PRIMARY KEY,
@@ -20,7 +19,6 @@ def criar_banco():
             data_fundacao TEXT
         )
     ''')
-    # Tabela de Pedidos
     c.execute('''
         CREATE TABLE IF NOT EXISTS pedidos (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -80,26 +78,44 @@ criar_banco()
 # 2. Interface Estilizada e Minimalista
 st.set_page_config(layout="wide", page_title="Gestão de Fluxo", page_icon="📋")
 
-# Estilização CSS para botões amarelos no topo direito e cards minimalistas
+# Injeção de CSS para divisórias verticais e caixinhas quadradas (estilo Agendor)
 st.markdown("""
     <style>
     div[data-testid="stExpander"] { border: none !important; box-shadow: none !important; }
-    .stButton>button { border-radius: 4px; }
-    /* Botões amarelos do topo */
-    div[data-testid="column"] button[p-id="botao-amarelo"] {
-        background-color: #FFD700 !important;
-        color: #000000 !important;
-        font-weight: bold !important;
-        border: none !important;
-        width: 100%;
+    
+    /* Configuração e linha divisória das colunas */
+    div[data-testid="column"] {
+        padding-right: 15px !important;
+        padding-left: 5px !important;
+        border-right: 1px solid #e0e0e0 !important;
     }
-    /* Estilo dos mini-cards */
-    .card-pedido {
-        background-color: #f8f9fa;
-        border-left: 4px solid #FFD700;
-        padding: 10px;
+    /* Remove a borda da última coluna para não sobrar traço no canto da tela */
+    div[data-testid="column"]:last-child {
+        border-right: none !important;
+    }
+    
+    /* Caixinha quadrada do pedido (Estilo Agendor) */
+    .caixa-pedido {
+        background-color: #ffffff;
+        border: 1px solid #e0e0e0;
+        border-top: 3px solid #FFD700; /* Detalhe amarelo no topo do card */
+        padding: 12px;
         border-radius: 4px;
-        margin-bottom: 10px;
+        margin-bottom: 8px;
+        box-shadow: 0px 1px 3px rgba(0,0,0,0.05);
+    }
+    
+    .id-pedido {
+        font-size: 13px;
+        font-weight: bold;
+        color: #333333;
+        margin-bottom: 2px;
+    }
+    
+    .nome-cliente {
+        font-size: 13px;
+        color: #666666;
+        word-wrap: break-word;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -110,7 +126,7 @@ col_titulo, col_btn1, col_btn2 = st.columns([6, 2, 2])
 with col_titulo:
     st.title("📋 Painel de Controle")
 
-# Botões superiores amarelos usando janelas abertas por expanders discretos
+# Botões superiores amarelos integrados de forma minimalista
 with col_btn1:
     criar_cad = st.expander("👤 Criar Cadastro")
 with col_btn2:
@@ -150,7 +166,7 @@ with criar_ped:
     if doc_busca:
         cliente_encontrado = buscar_cliente(doc_busca)
         if cliente_encontrado:
-            st.info(f"Cliente identificado: {cliente_encontrado[0]} ({cliente_encontrado[1]})")
+            st.info(f"Cliente identificado: {cliente_encontrado[0]}")
             if st.button("Confirmar e Criar Pedido", type="primary"):
                 criar_novo_pedido(doc_busca)
                 st.success("Pedido enviado para 'Pedido Criado'!")
@@ -172,42 +188,39 @@ df_pedidos = carregar_fluxo()
 
 for idx_etapa, etapa in enumerate(etapas):
     with colunas_quadro[idx_etapa]:
-        # Título compacto para caber as 8 colunas na tela
-        st.markdown(f"<p style='font-size:13px; font-weight:bold; margin-bottom:2px;'>{etapa.upper()}</p>", unsafe_allow_html=True)
-        st.markdown("<hr style='margin-top:2px; margin-bottom:8px;'>", unsafe_allow_html=True)
+        # Título alinhado e limpo para cada fase
+        st.markdown(f"<p style='font-size:12px; font-weight:bold; margin-bottom:2px; color:#444444; text-align:center;'>{etapa.upper()}</p>", unsafe_allow_html=True)
+        st.markdown("<div style='margin-bottom:12px;'></div>", unsafe_allow_html=True)
         
         pedidos_fase = df_pedidos[df_pedidos["etapa"] == etapa] if not df_pedidos.empty else pd.DataFrame()
         
         for _, row in pedidos_fase.iterrows():
-            # Card compacto customizado
+            # Estrutura HTML da caixinha quadrada limpa
             st.markdown(f"""
-                <div class='card-pedido'>
-                    <b style='font-size:14px;'>P-{row['id']}</b><br>
-                    <small style='color:#555;'>{row['nome']}</small>
+                <div class='caixa-pedido'>
+                    <div class='id-pedido'>P-{row['id']}</div>
+                    <div class='nome-cliente'>{row['nome']}</div>
                 </div>
             """, unsafe_allow_html=True)
             
-            # Botão de Ação/Detalhes do pedido
+            # Botão discreto de gerenciamento logo abaixo de cada caixinha
             with st.popover("⚙️ Detalhes / Mover", use_container_width=True):
                 st.write(f"**Pedido:** P-{row['id']}")
                 st.write(f"**Cliente:** {row['nome']} ({row['documento_cliente']})")
                 
-                # Exibe observações atuais
                 st.info(row['observacoes'] if row['observacoes'] else "Sem informações adicionadas.")
                 
-                # Inputs de atualização
                 novas_obs = st.text_area("Adicionar Informações / Histórico:", value=row['observacoes'], key=f"obs_{row['id']}")
                 
-                # Upload de arquivos (armazenamento temporário em memória nesta versão simples)
                 arquivo = st.file_uploader("Adicionar arquivos:", key=f"file_{row['id']}")
                 if arquivo:
-                    st.caption(f"📎 Arquivo carregado: {arquivo.name}")
+                    st.caption(f"📎 Arquivo anexado: {arquivo.name}")
                 
-                # Seleção manual da próxima aba
                 nova_fase = st.selectbox("Mover manualmente para:", etapas, index=etapas.index(etapa), key=f"fase_{row['id']}")
                 
                 if st.button("Salvar Alterações", key=f"save_{row['id']}", type="primary"):
                     atualizar_pedido(row['id'], nova_fase, novas_obs)
-                    st.success("Atualizado!")
+                    st.success("Pedido Atualizado!")
                     st.rerun()
+
 
