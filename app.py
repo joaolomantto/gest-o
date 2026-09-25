@@ -81,7 +81,7 @@ def cadastrar_usuario(usuario, senha, nome, cpf, dt_nasc, telephone):
         c.execute('''
             INSERT INTO usuarios (usuario, senha, nome, cpf, data_nascimento, telephone, autorizado)
             VALUES (?, ?, ?, ?, ?, ?, 'PENDENTE')
-        ''', (usuario.strip().lower(), Append_senha:=senha, nome, cpf, dt_nasc, telephone))
+        ''', (usuario.strip().lower(), senha, nome, cpf, dt_nasc, telephone))
         conn.commit()
         sucesso = True
     except Exception:
@@ -96,7 +96,7 @@ def checar_status_usuario(usuario):
     res = c.fetchone()
     conn.close()
     if res:
-        return res[0]
+        return res
     return "PENDENTE"
 
 def realizar_login(usuario, senha):
@@ -112,7 +112,7 @@ def realizar_login(usuario, senha):
     conn.close()
     
     if res:
-        return {"usuario": usuario_limpo, "nome": res[0], "status": res[1]}
+        return {"usuario": usuario_limpo, "nome": res, "status": res}
     return None
 
 def listar_usuarios_pendentes():
@@ -228,7 +228,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ----------------------------------------------------
-# SISTEMA DE PORTAL DE ENTRADA (RETILÍNEO)
+# SISTEMA DE PORTAL DE ENTRADA
 # ----------------------------------------------------
 if not st.session_state["logado"]:
     st.title("📋 Portal de Acesso — Gestão de Fluxo")
@@ -259,10 +259,12 @@ if not st.session_state["logado"]:
         new_pass = st.text_input("Defina sua Senha de Acesso:", type="password", key="reg_pass")
         
         if st.button("🚀 Cadastrar e Solicitar Permissão", use_container_width=True, type="primary"):
-            # LÓGICA LINEAR DA VALIDAÇÃO SEM CONDICIONAIS ANINHADAS CONFLITANTES
-            valido = bool(new_nome and new_cpf and new_nasc and new_fone and new_user and new_pass)
-            if not valido:
+            # REESTRUTURAÇÃO COMPLETA: Validações independentes em blocos if isolados
+            if not (new_nome and new_cpf and new_nasc and new_fone and new_user and new_pass):
                 st.error("Preencha todos os campos do formulário para concluir.")
-            elif new_user.strip().lower() == USER_MASTER:
+                st.stop()
+                
+            if new_user.strip().lower() == USER_MASTER:
                 st.error("Este nome de usuário é reservado ao administrador.")
-            else:
+                st.stop()
+                
