@@ -1,4 +1,4 @@
-import streamlit as st
+import streamlit st
 import sqlite3
 import pandas as pd
 import os
@@ -186,8 +186,6 @@ def carregar_fluxo():
 criar_banco()
 
 # 2. Interface Estilizada e Configurações de Sessão
-st.set_page_config(layout="wide", page_title="Gestão de Fluxo", page_icon="📋")
-
 if "logado" not in st.session_state:
     st.session_state["logado"] = False
 if "session_user" not in st.session_state:
@@ -264,7 +262,9 @@ if not st.session_state["logado"]:
         new_pass = st.text_input("Defina sua Senha de Acesso:", type="password", key="reg_pass")
         
         if st.button("🚀 Cadastrar e Solicitar Permissão", use_container_width=True, type="primary"):
-            if new_nome and new_cpf and new_nasc and new_fone and new_user and new_pass:
-                if new_user.strip().lower() == USER_MASTER:
-                    st.error("Este nome de usuário é reservado ao administrador.")
-                elif cadastrar_usuario(new_user, new_pass, new_nome, new_cpf, new_nasc, new_fone):
+            if not (new_nome and new_cpf and new_nasc and new_fone and new_user and new_pass):
+                st.error("Preencha todos os campos do formulário para concluir.")
+            elif new_user.strip().lower() == USER_MASTER:
+                st.error("Este nome de usuário é reservado ao administrador.")
+            else:
+                if cadastrar_usuario(new_user, new_pass, new_nome, new_cpf, new_nasc, new_fone):
