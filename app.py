@@ -18,6 +18,7 @@ def criar_banco():
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
     
+    # Garante a criação segura das tabelas base de clientes e pedidos
     c.execute('''
         CREATE TABLE IF NOT EXISTS clientes (
             documento TEXT PRIMARY KEY,
@@ -38,11 +39,10 @@ def criar_banco():
         )
     ''')
     
-    try:
-        c.execute("SELECT usuario FROM usuarios LIMIT 1")
-    except sqlite3.OperationalError:
-        c.execute("DROP TABLE IF EXISTS usuarios")
+    # CORREÇÃO COMPLETA: Remove qualquer estrutura de tabela antiga para evitar erros de coluna ou chave primária
+    c.execute("DROP TABLE IF EXISTS usuarios")
         
+    # Recria a tabela de usuários com a estrutura perfeita e atualizada
     c.execute('''
         CREATE TABLE IF NOT EXISTS usuarios (
             usuario TEXT PRIMARY KEY,
@@ -55,6 +55,7 @@ def criar_banco():
         )
     ''')
     
+    # Atualização de colunas auxiliares na tabela de pedidos
     try:
         c.execute("ALTER TABLE pedidos ADD COLUMN arquivo_caminho TEXT DEFAULT ''")
     except sqlite3.OperationalError:
@@ -261,8 +262,3 @@ if not st.session_state["logado"]:
                     st.error("Este nome de usuário é reservado ao administrador.")
                 else:
                     if cadastrar_usuario(new_user, new_pass, new_nome, new_cpf, new_nasc, new_fone):
-                        st.success("🎯 Conta criada com sucesso! Vá para a aba '🔒 Acessar Minha Conta' acima e faça seu login.")
-                    else:
-                        st.error("Erro interno ao salvar. Tente escolher outro nome de usuário.")
-    st.stop()
-
