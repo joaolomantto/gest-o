@@ -2,8 +2,8 @@ import streamlit as st
 import sqlite3
 import pandas as pd
 
-# 1. Configuração e Conexão com Banco de Dados SQLite
-DB_FILE = "sistema_agendor_custom.db"
+# 1. BANCO DE DADOS (Nome alterado para iniciar 100% zerado e limpo)
+DB_FILE = "sistema_agendor_oficial.db"
 
 def criar_banco():
     conn = sqlite3.connect(DB_FILE)
@@ -66,7 +66,7 @@ def atualizar_pedido(id_ped, nova_etapa, novas_obs):
 def carregar_fluxo():
     conn = sqlite3.connect(DB_FILE)
     df = pd.read_sql_query('''
-        SELECT p.id, p.documento_cliente, p.etapa, p.observacoes, IFNULL(c.nome, 'Sem Cadastro') as nome, IFNULL(c.tipo, 'PF') as tipo
+        SELECT p.id, p.documento_cliente, p.etapa, p.observacoes, IFNULL(c.nome, 'Cliente Sem Cadastro') as nome, IFNULL(c.tipo, 'PF') as tipo
         FROM pedidos p
         LEFT JOIN clientes c ON p.documento_cliente = c.documento
     ''', conn)
@@ -75,25 +75,25 @@ def carregar_fluxo():
 
 criar_banco()
 
-# Lista global com as 8 etapas solicitadas na ordem exata
+# As 8 etapas na ordem exata solicitada
 ETAPAS_GLOBAL = [
     "Pedido Criado", "Confirmar Pix", "Faturar Notas", 
     "Faturar Entregar e Receber", "Cliente vem Buscar", 
     "Entregas via Tecar", "Transportadora", "Pedido Finalizado"
 ]
 
-# 2. Interface Avançada e Configuração de Tela Cheia
+# 2. CONFIGURAÇÃO DA INTERFACE (Tema Claro e Expansão)
 st.set_page_config(layout="wide", page_title="Gestão de Fluxo", page_icon="📋")
 
-# Estilização Inteligente em CSS (Fundo Branco, Divisórias de Cima a Baixo e Zoom de 0.8s)
+# Injeção de CSS de Alta Performance (Fundo Branco, Linhas e Caixas Quadradas)
 st.markdown("""
     <style>
-    /* Força o plano de fundo geral para BRANCO absoluto */
-    .stApp, [data-testid="stAppViewContainer"], [data-testid="stHeader"], [data-testid="stMainBlockContainer"] {
+    /* Força todas as camadas do Streamlit a ficarem BRANCAS */
+    html, body, .stApp, [data-testid="stAppViewContainer"], [data-testid="stHeader"], [data-testid="stMainBlockContainer"] {
         background-color: #ffffff !important;
     }
     
-    /* Força todos os textos normais do sistema para PRETO */
+    /* Força os textos e títulos para PRETO PURO */
     h1, h2, h3, h4, h5, h6, p, span, label, li, div, .stMarkdown, p font {
         color: #000000 !important;
     }
@@ -111,7 +111,7 @@ st.markdown("""
         color: #000000 !important;
     }
     
-    /* Força as divisões de colunas irem de cima até embaixo (Linhas divisórias contínuas) */
+    /* Configuração e linhas verticais contínuas entre as colunas do funil */
     div[data-testid="stHorizontalBlock"] {
         align-items: stretch !important;
         background-color: #ffffff !important;
@@ -120,8 +120,7 @@ st.markdown("""
     div[data-testid="column"] {
         padding-right: 10px !important;
         padding-left: 10px !important;
-        border-right: 1px solid #cccccc !important; /* Linha de divisa cinza clara */
-        min-height: 75vh !important; /* Mantém a linha descendo pela tela */
+        border-right: 1px solid #cccccc !important; /* Linha de divisa cinza nítida */
     }
     
     div[data-testid="column"]:last-child {
@@ -132,11 +131,11 @@ st.markdown("""
     .topo-coluna {
         background-color: #ffffff;
         border: 1px solid #000000;
-        padding: 8px 4px;
+        padding: 6px 4px;
         border-radius: 4px;
         text-align: center;
         margin-bottom: 20px;
-        height: 58px; /* Altura ideal para alinhar caixas longas de duas linhas */
+        height: 58px; /* Altura ideal para alinhar textos longos de duas linhas */
         display: flex;
         align-items: center;
         justify-content: center;
@@ -150,7 +149,7 @@ st.markdown("""
         line-height: 1.2;
     }
     
-    /* CONFIGURAÇÃO DA CAIXINHA QUADRADA DO PEDIDO (CSS direto sobre o botão nativo para não travar cliques) */
+    /* CONFIGURAÇÃO DA CAIXINHA QUADRADA DO PEDIDO (CSS aplicado diretamente sobre o botão nativo) */
     div.element-container button[data-testid="stBaseButton-secondary"] {
         background-color: #ffffff !important;
         border: 1px solid #babcbf !important;
@@ -164,7 +163,7 @@ st.markdown("""
         box-shadow: 0px 1px 3px rgba(0, 0, 0, 0.08) !important;
         display: block !important;
         transition: transform 0.3s ease, box-shadow 0.3s ease !important;
-        transition-delay: 0.8s !important; /* Só aplica o zoom se o mouse ficar parado por 0,8s */
+        transition-delay: 0.8s !important; /* Zoom só ativa após 0,8s parado */
     }
     
     /* Força os textos internos da caixinha a ficarem pretos */
@@ -175,7 +174,7 @@ st.markdown("""
     }
     
     div.element-container button[data-testid="stBaseButton-secondary"]:hover {
-        transform: scale(1.06) !important; /* Pequeno zoom de destaque */
+        transform: scale(1.06) !important; /* Pequeno Zoom de destaque */
         box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.15) !important;
         background-color: #ffffff !important;
     }
@@ -188,7 +187,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# 3. Janelas Modais Centrais Inteligentes (Evitam sobreposição na tela)
+# 3. JANELAS MODAIS FLUTUANTES (Abrem no centro e voltam limpas para a tela inicial)
 @st.dialog("⚙️ Detalhes e Ações do Pedido")
 def modal_detalhes_pedido(row):
     st.write(f"**Código:** P-{row['id']}")
@@ -213,13 +212,12 @@ def modal_detalhes_pedido(row):
         if st.button("❌ Sair sem Salvar"):
             st.rerun()
 
-# 4. Layout do Cabeçalho (Título à esquerda e botões amarelos no canto superior direito)
-col_titulo, col_btn1, col_btn2 = st.columns([6, 2, 2])
+# 4. CABEÇALHO PRINCIPAL (Título e Botões Amarelos Alinhados à Direita)
+col_titulo, col_btn1, col_btn2 = st.columns()
 
 with col_titulo:
     st.title("📋 Painel de Controle")
 
-# Menus suspensos em Expander amarelos mantendo sua estrutura original
 with col_btn1:
     criar_cad = st.expander("👤 CRIAR CADASTRO")
 with col_btn2:
@@ -259,6 +257,11 @@ with criar_ped:
     if doc_busca:
         cliente_encontrado = buscar_cliente(doc_busca)
         if cliente_encontrado:
-            st.info(f"Cliente identificado: {cliente_encontrado[0]}")
+            st.info(f"Cliente identificado: {cliente_encontrado}")
             if st.button("Confirmar e Criar Pedido", type="primary"):
                 criar_novo_pedido(doc_busca)
+                st.success("Pedido enviado para 'Pedido Criado'!")
+                st.rerun()
+        else:
+            st.warning("Cliente não localizado no banco, gerando pedido direto.")
+            if st.button("Criar Pedido Direto", type="primary"):
