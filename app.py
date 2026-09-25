@@ -49,6 +49,21 @@ def criar_banco():
         )
     ''')
     
+    # CORREÇÃO DEFINITIVA: Atualiza a estrutura antiga da tabela de usuários se ela já existir no servidor
+    try:
+        c.execute("ALTER TABLE usuarios ADD COLUMN usuario TEXT")
+    except sqlite3.OperationalError:
+        pass
+    try:
+        c.execute("ALTER TABLE usuarios ADD COLUMN senha TEXT")
+    except sqlite3.OperationalError:
+        pass
+    try:
+        c.execute("ALTER TABLE usuarios ADD COLUMN autorizado TEXT DEFAULT 'PENDENTE'")
+    except sqlite3.OperationalError:
+        pass
+
+    # Colunas de pedidos por segurança
     try:
         c.execute("ALTER TABLE pedidos ADD COLUMN arquivo_caminho TEXT DEFAULT ''")
     except sqlite3.OperationalError:
@@ -66,7 +81,7 @@ def cadastrar_usuario(usuario, senha, nome, cpf, dt_nasc, telefone):
     c = conn.cursor()
     try:
         c.execute('''
-            INSERT INTO usuarios (usuario, senha, nome, cpf, data_nascimento, telefone, autorizado)
+            INSERT OR REPLACE INTO usuarios (usuario, senha, nome, cpf, data_nascimento, telefone, autorizado)
             VALUES (?, ?, ?, ?, ?, ?, 'PENDENTE')
         ''', (usuario.strip().lower(), senha, nome, cpf, dt_nasc, telefone))
         conn.commit()
@@ -74,7 +89,7 @@ def cadastrar_usuario(usuario, senha, nome, cpf, dt_nasc, telefone):
     except sqlite3.IntegrityError:
         sucesso = False
     conn.close()
-    return技术sucesso
+    return sucesso
 
 def checar_status_usuario(usuario):
     conn = sqlite3.connect(DB_FILE)
@@ -86,7 +101,6 @@ def checar_status_usuario(usuario):
         return res[0]
     return "PENDENTE"
 
-# CORREÇÃO: Função de login reestruturada para retornar os dados corretos sem quebrar a tela do admin
 def realizar_login(usuario, senha):
     usuario_limpo = usuario.strip().lower()
     
@@ -256,12 +270,3 @@ if not st.session_state["logado"]:
                 if new_nome and new_cpf and new_nasc and new_fone and new_user and new_pass:
                     if new_user.strip().lower() == USER_MASTER:
                         st.error("Este nome de usuário é reservado ao administrador.")
-                    elif cadastrar_usuario(new_user, new_pass, new_nome, new_cpf, new_nasc, new_fone):
-                        st.success("Conta criada! Volte na aba 'Acessar Minha Conta' para fazer o seu login.")
-                    else:
-                        st.error("Este nome de usuário já está sendo utilizado por outra pessoa.")
-                else:
-                    st.error("Preencha todos os campos do formulário para concluir.")
-    st.stop()
-
-# ----------------------------------------------------
