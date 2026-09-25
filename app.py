@@ -151,7 +151,6 @@ if "usuario_nome" not in st.session_state:
 with st.sidebar:
     st.header("👤 Autenticação")
     if not st.session_state.usuario:
-        # Pergunta se já tem conta para alternar a tela automaticamente
         ja_tem_conta = st.checkbox("Já tenho uma conta cadastrada", value=True)
         
         if ja_tem_conta:
@@ -177,7 +176,7 @@ with st.sidebar:
             if st.button("Registrar Conta", use_container_width=True):
                 if new_user and new_nome and new_senha:
                     if cadastrar_usuario(new_user, new_nome, new_senha):
-                        st.success("Cadastro realizado com sucesso! Marque a caixa acima para fazer login.")
+                        st.success("Cadastro realizado! Marque a caixa acima para fazer login.")
                     else:
                         st.error("Este Username já está em uso.")
                 else:
@@ -281,3 +280,6 @@ with criar_cad:
                     st.success("Cliente PF Cadastrado!")
                     st.rerun()
         else:
+            nome_emp = st.text_input("Nome da Empresa:")
+            cnpj = st.text_input("CNPJ:")
+            dt_fund = st.text_input("Data de Fundação (DD/MM/AAAA):")
