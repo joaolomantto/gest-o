@@ -41,8 +41,6 @@ def criar_banco():
             autor TEXT DEFAULT 'Não informado'
         )
     ''')
-    
-    # Cria a tabela de usuários caso ela não exista
     c.execute('''
         CREATE TABLE IF NOT EXISTS usuarios (
             username TEXT PRIMARY KEY,
@@ -51,7 +49,7 @@ def criar_banco():
         )
     ''')
     
-    # Adiciona a coluna senha_hash se a tabela já existia sem ela de forma segura
+    # Garante de forma segura que a coluna de senha exista
     try:
         c.execute("ALTER TABLE usuarios ADD COLUMN senha_hash TEXT NOT NULL DEFAULT ''")
     except sqlite3.OperationalError:
@@ -150,7 +148,6 @@ criar_banco()
 # 2. Interface Estilizada e Configuração Inicial
 st.set_page_config(layout="wide", page_title="Gestão de Fluxo", page_icon="📋")
 
-# Controle de Sessão de Usuário
 if "usuario" not in st.session_state:
     st.session_state.usuario = None
 if "usuario_nome" not in st.session_state:
@@ -197,7 +194,7 @@ with st.sidebar:
             st.session_state.usuario_nome = None
             st.rerun()
 
-# Se não houver sessão ativa, interrompe a execução do Kanban
+# Bloqueia a renderização caso não esteja logado
 if not st.session_state.usuario:
     st.warning("⚠️ Faça login na barra lateral para carregar as informações do sistema.")
     st.stop()
@@ -262,7 +259,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-col_titulo, col_btn1, col_btn2 = st.columns([6, 2, 2])
+col_titulo, col_btn1, col_btn2 = st.columns()
 
 with col_titulo:
     st.title("📋 Painel de Controle")
@@ -276,12 +273,11 @@ with criar_cad:
     st.markdown("<p style='color:black; font-weight:bold;'>Novo Cliente</p>", unsafe_allow_html=True)
     tipo_pess = st.radio("Tipo de Pessoa", ["PESSOA FÍSICA", "PESSOA JURÍDICA"], horizontal=True)
     
-    with st.form("form_cliente", clear_on_submit=True):
-        if tipo_pess == "PESSOA FÍSICA":
-            nome = st.text_input("Nome:")
-            cpf = st.text_input("CPF:")
-            rg = st.text_input("RG:")
-            dt_nasc = st.text_input("Data de Nascimento (DD/MM/AAAA):")
-            orgao = st.text_input("Órgão Emissor:")
-            
-            if st.form_submit_button("Salvar Cliente"):
+    # Modificado: Formulários totalmente planos e simplificados para evitar erros de tabs/indents no Streamlit
+    if tipo_pess == "PESSOA FÍSICA":
+        with st.form("form_pf", clear_on_submit=True):
+            nome_pf = st.text_input("Nome:")
+            cpf_pf = st.text_input("CPF:")
+            rg_pf = st.text_input("RG:")
+            dt_nasc_pf = st.text_input("Data de Nascimento (DD/MM/AAAA):")
+            orgao_pf = st.text_input("Órgão Emissor:")
