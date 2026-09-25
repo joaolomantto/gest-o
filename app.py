@@ -163,8 +163,8 @@ with st.sidebar:
                 dados_user = verificar_login(user_login, senha_login)
                 if dados_user:
                     st.session_state.usuario = user_login.strip().lower()
-                    st.session_state.usuario_nome = dados_user
-                    st.success(f"Bem-vindo, {dados_user}!")
+                    st.session_state.usuario_nome = dados_user[0] # Pega a string do nome retornado pela tupla do banco
+                    st.success(f"Bem-vindo, {st.session_state.usuario_nome}!")
                     st.rerun()
                 else:
                     st.error("Usuário ou senha incorretos.")
@@ -189,7 +189,7 @@ with st.sidebar:
             st.session_state.usuario_nome = None
             st.rerun()
 
-# Se não houver sessão ativa, interrompe a execução do Kanban
+# Se não houver sessão ativa, interrompe a execução do Kanban e oculta os funis
 if not st.session_state.usuario:
     st.warning("⚠️ Faça login na barra lateral para carregar as informações do sistema.")
     st.stop()
@@ -254,7 +254,8 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-col_titulo, col_btn1, col_btn2 = st.columns()
+# CORREÇÃO DA DIVISÃO DE COLUNAS: Passando a proporção correta para a largura do cabeçalho
+col_titulo, col_btn1, col_btn2 = st.columns([6, 2, 2])
 
 with col_titulo:
     st.title("📋 Painel de Controle")
@@ -267,7 +268,6 @@ with col_btn2:
 with criar_cad:
     st.markdown("<p style='color:black; font-weight:bold;'>Novo Cliente</p>", unsafe_allow_html=True)
     
-    # Divisão limpa em sub-abas nativas para remover IF/ELSE complexos de layout
     aba_pf, aba_pj = st.tabs(["PESSOA FÍSICA", "PESSOA JURÍDICA"])
     
     with aba_pf:
@@ -280,4 +280,3 @@ with criar_cad:
             
             if st.form_submit_button("Salvar Cliente Física"):
                 if pf_nome and pf_cpf:
-                    salvar_cliente(pf_cpf, "PF", pf_nome, pf_rg, pf_dt_nasc, pf_orgao)
