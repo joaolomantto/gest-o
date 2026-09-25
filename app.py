@@ -275,6 +275,4 @@ for idx_etapa, etapa in enumerate(etapas):
         else:
             st.markdown("<p style='font-size:11px; color:#a0aec0; text-align:center;'>Nenhum pedido</p>", unsafe_allow_html=True)
 
-# 4. Modal de Detalhes Estável - Executado de forma limpa fora do loop do Kanban
-if st.session_state.pedido_selecionado_id is not None:
-    @st.dialog("Detalhes do Pedido", width="large")
+# 4. FUNÇÃO DO MODAL DECLARADA TOTALMENTE FORA E LIVRE DE BLOCOS CONDICIONAIS (Resolução definitiva)
