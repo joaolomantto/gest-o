@@ -35,9 +35,9 @@ def criar_banco():
         )
     ''')
     
-    # CORRIGIDO: Sintaxe correta 'not in' para verificar e adicionar a coluna de arquivos
+    # Verifica e adiciona a coluna de arquivos se ela não existir
     c.execute("PRAGMA table_info(pedidos)")
-    colunas = [col[1] for col in c.fetchall()]
+    colunas = [col for col in c.fetchall()]
     if "arquivo_caminho" not in colunas:
         c.execute("ALTER TABLE pedidos ADD COLUMN arquivo_caminho TEXT DEFAULT ''")
         
@@ -76,13 +76,6 @@ def atualizar_pedido(id_ped, nova_etapa, novas_obs, arquivo_path=None):
         c.execute("UPDATE pedidos SET etapa = ?, observacoes = ?, arquivo_caminho = ? WHERE id = ?", (nova_etapa, novas_obs, arquivo_path, id_ped))
     else:
         c.execute("UPDATE pedidos SET etapa = ?, observacoes = ? WHERE id = ?", (nova_etapa, novas_obs, id_ped))
-    conn.commit()
-    conn.close()
-
-def atualizar_etapa_rapida(id_ped, nova_etapa):
-    conn = sqlite3.connect(DB_FILE)
-    c = conn.cursor()
-    c.execute("UPDATE pedidos SET etapa = ? WHERE id = ?", (nova_etapa, id_ped))
     conn.commit()
     conn.close()
 
@@ -174,7 +167,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-col_titulo, col_btn1, col_btn2 = st.columns([6, 2, 2])
+col_titulo, col_btn1, col_btn2 = st.columns()
 
 with col_titulo:
     st.title("📋 Painel de Controle")
@@ -254,20 +247,7 @@ for idx_etapa, etapa in enumerate(etapas):
                 </div>
             """, unsafe_allow_html=True)
             
-            # Botões rápidos direcionais
-            col_esq, col_dir = st.columns(2)
-            with col_esq:
-                if idx_etapa > 0:
-                    if st.button(f"◀ Voltar", key=f"btn_esq_{row['id']}", use_container_width=True):
-                        atualizar_etapa_rapida(row['id'], etapas[idx_etapa - 1])
-                        st.rerun()
-            with col_dir:
-                if idx_etapa < len(etapas) - 1:
-                    if st.button(f"Avançar ▶", key=f"btn_dir_{row['id']}", use_container_width=True):
-                        atualizar_etapa_rapida(row['id'], etapas[idx_etapa + 1])
-                        st.rerun()
-            
-            # Detalhes do pedido
+            # Detalhes do pedido (Botões rápidos externos removidos daqui)
             with st.popover("⚙️ Detalhes / Opções", use_container_width=True):
                 st.write(f"**Pedido:** P-{row['id']}")
                 st.write(f"**Cliente:** {row['nome']} ({row['documento_cliente']})")
@@ -282,3 +262,19 @@ for idx_etapa, etapa in enumerate(etapas):
                 arquivo_carregado = st.file_uploader("Adicionar / Substituir Arquivos:", key=f"file_{row['id']}")
                 
                 nova_fase = st.selectbox("Mover para etapa:", etapas, index=etapas.index(row['etapa']), key=f"fase_{row['id']}")
+                novas_obs = st.text_area("Observações do pedido:", value=row['observacoes'], key=f"obs_{row['id']}")
+                
+                col_salvar, col_excluir = st.columns(2)
+                
+                with col_salvar:
+                    if st.button("Salvar Mudanças", key=f"btn_salvar_{row['id']}", type="primary", use_container_width=True):
+                        caminho_salvo = None
+                        if arquivo_carregado is not None:
+                            caminho_salvo = os.path.join(UPLOAD_DIR, f"pedido_{row['id']}_{arquivo_carregado.name}")
+                            with open(caminho_salvo, "wb") as f:
+                                f.write(arquivo_carregado.getbuffer())
+                        
+                        atualizar_pedido(row['id'], nova_fase, novas_obs, caminho_salvo)
+                        st.rerun()
+                        
+                with col_excluir:
