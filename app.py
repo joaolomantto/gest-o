@@ -24,7 +24,8 @@ def criar_banco():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             documento_cliente TEXT NOT NULL,
             etapa TEXT NOT NULL,
-            observacoes TEXT DEFAULT ' '
+            observacoes TEXT DEFAULT '',
+            FOREIGN KEY(documento_cliente) REFERENCES clientes(documento)
         )
     ''')
     conn.commit()
@@ -33,7 +34,7 @@ def criar_banco():
 def buscar_cliente(doc):
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
-    c.execute("SELECT nome, tipo FROM clientes WHERE documento = ?", (doc.strip(),))
+    c.execute("SELECT nome, tipo FROM clientes WHERE documento = ?", (doc,))
     res = c.fetchone()
     conn.close()
     return res
@@ -44,15 +45,14 @@ def salvar_cliente(doc, tipo, nome, rg=None, dt_nasc=None, orgao=None, dt_fund=N
     c.execute('''
         INSERT OR REPLACE INTO clientes (documento, tipo, nome, rg, data_nascimento, orgao_emissor, data_fundacao)
         VALUES (?, ?, ?, ?, ?, ?, ?)
-    ''', (doc.strip(), tipo, nome, rg, dt_nasc, orgao, dt_fund))
+    ''', (doc, tipo, nome, rg, dt_nasc, orgao, dt_fund))
     conn.commit()
     conn.close()
 
 def criar_novo_pedido(doc):
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
-    # Grava o pedido rigidamente com o texto idêntico ao título da primeira coluna
-    c.execute("INSERT INTO pedidos (documento_cliente, etapa) VALUES (?, 'Pedido Criado')", (doc.strip(),))
+    c.execute("INSERT INTO pedidos (documento_cliente, etapa) VALUES (?, 'Pedido Criado')", (doc,))
     conn.commit()
     conn.close()
 
@@ -66,121 +66,98 @@ def atualizar_pedido(id_ped, nova_etapa, novas_obs):
 def carregar_fluxo():
     conn = sqlite3.connect(DB_FILE)
     df = pd.read_sql_query('''
-        SELECT p.id, p.documento_cliente, p.etapa, p.observacoes, 
-               IFNULL(c.nome, p.documento_cliente) as nome, 
-               IFNULL(c.tipo, 'PF') as tipo
+        SELECT p.id, p.documento_cliente, p.etapa, p.observacoes, c.nome, c.tipo
         FROM pedidos p
-        LEFT JOIN clientes c ON p.documento_cliente = c.documento
+        JOIN clientes c ON p.documento_cliente = c.documento
     ''', conn)
     conn.close()
     return df
 
 criar_banco()
 
-# Inicialização do controle estável de cliques
-if "pedido_selecionado" not in st.session_state:
-    st.session_state.pedido_selecionado = None
-
-# 2. Interface Avançada e Configuração de Tela
+# 2. Interface Estilizada e Minimalista
 st.set_page_config(layout="wide", page_title="Gestão de Fluxo", page_icon="📋")
 
-# Estilização do Design Original (Botões Amarelos e Divisórias verticais)
+# Injeção de CSS para botões superiores amarelos e caixinhas quadradas
 st.markdown("""
     <style>
+    /* Estilo para transformar os expanders nos botões amarelos solicitados */
     div[data-testid="stExpander"] {
         background-color: #FFD700 !important;
         border: 1px solid #E6C200 !important;
         border-radius: 4px !important;
+        box-shadow: none !important;
     }
     div[data-testid="stExpander"] p {
         color: #000000 !important;
         font-weight: bold !important;
     }
     
-    /* Força as divisões de colunas irem de cima até embaixo */
+    /* Configuração e linha divisória das colunas de cima até embaixo */
     div[data-testid="stHorizontalBlock"] {
         align-items: stretch !important;
     }
     
     div[data-testid="column"] {
-        padding-right: 10px !important;
-        padding-left: 10px !important;
-        border-right: 1px solid #d1d5db !important;
+        padding-right: 15px !important;
+        padding-left: 15px !important;
+        border-right: 1px solid #e2e8f0 !important;
+        min-height: 80vh !important;
     }
     
     div[data-testid="column"]:last-child {
         border-right: none !important;
     }
     
-    /* Caixa de Etapas Superior */
+    /* Cabeçalho cinza minimalista para as etapas */
     .topo-coluna {
-        background-color: #ffffff;
-        border: 1px solid #e2e8f0;
-        padding: 8px 4px;
+        background-color: #f8fafc;
+        padding: 8px;
         border-radius: 4px;
         text-align: center;
-        margin-bottom: 20px;
-        height: 55px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        box-shadow: 0px 1px 2px rgba(0,0,0,0.05);
+        margin-bottom: 15px;
+        border: 1px solid #edf2f7;
     }
     
-    .texto-topo {
-        font-size: 10px;
+    /* Caixinha quadrada do pedido (Estilo Agendor) */
+    .caixa-pedido {
+        background-color: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-top: 3px solid #FFD700;
+        padding: 12px;
+        border-radius: 4px;
+        margin-bottom: 8px;
+        box-shadow: 0px 1px 3px rgba(0, 0, 0, 0.05);
+    }
+    
+    .id-pedido {
+        font-size: 13px;
         font-weight: bold;
         color: #1a202c;
-        line-height: 1.2;
+        margin-bottom: 2px;
     }
     
-    /* Efeito de Zoom com 0.8s nos botões-cards nativos */
-    div.element-container button[data-testid="stBaseButton-secondary"] {
-        background-color: #ffffff !important;
-        border: 1px solid #babcbf !important;
-        border-top: 4px solid #FFD700 !important;
-        border-radius: 4px !important;
-        padding: 12px !important;
-        width: 100% !important;
-        height: auto !important;
-        min-height: 80px !important;
-        text-align: left !important;
-        box-shadow: 0px 1px 3px rgba(0, 0, 0, 0.05) !important;
-        display: block !important;
-        transition: transform 0.3s ease, box-shadow 0.3s ease !important;
-        transition-delay: 0.8s !important;
-    }
-    
-    /* Força o nome do cliente a quebrar linhas dentro do card */
-    div.element-container button[data-testid="stBaseButton-secondary"] p {
-        color: #1a202c !important;
-        font-weight: bold !important;
-        white-space: pre-wrap !important;
-        overflow: visible !important;
-        text-overflow: unset !important;
-        word-break: break-word !important;
-    }
-    
-    div.element-container button[data-testid="stBaseButton-secondary"]:hover {
-        transform: scale(1.06) !important;
-        box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.12) !important;
-        background-color: #ffffff !important;
+    .nome-cliente {
+        font-size: 13px;
+        color: #4a5568;
+        word-wrap: break-word;
     }
     </style>
 """, unsafe_allow_html=True)
 
-# Layout do Cabeçalho - Ajuste proporcional automático
+# Layout do Cabeçalho - Ajustado com proporções (6 partes para o título, 2 para cada botão)
 col_titulo, col_btn1, col_btn2 = st.columns([6, 2, 2])
 
 with col_titulo:
     st.title("📋 Painel de Controle")
 
+# Botões superiores amarelos empurrados para o canto direito
 with col_btn1:
     criar_cad = st.expander("👤 CRIAR CADASTRO")
 with col_btn2:
     criar_ped = st.expander("📦 CRIAR PEDIDO")
 
-# Fluxo Criar Cadastro
+# Fluxo do botão Criar Cadastro
 with criar_cad:
     st.markdown("<p style='color:black; font-weight:bold;'>Novo Cliente</p>", unsafe_allow_html=True)
     tipo_pess = st.radio("Tipo de Pessoa", ["PESSOA FÍSICA", "PESSOA JURÍDICA"], horizontal=True)
@@ -190,7 +167,7 @@ with criar_cad:
             nome = st.text_input("Nome:")
             cpf = st.text_input("CPF:")
             rg = st.text_input("RG:")
-            dt_nasc = st.text_input("Data de Nascimento:")
+            dt_nasc = st.text_input("Data de Nascimento (DD/MM/AAAA):")
             orgao = st.text_input("Órgão Emissor:")
             if st.form_submit_button("Salvar Cliente"):
                 if nome and cpf:
@@ -200,64 +177,31 @@ with criar_cad:
         else:
             nome_emp = st.text_input("Nome da Empresa:")
             cnpj = st.text_input("CNPJ:")
-            dt_fund = st.text_input("Data de Fundação:")
+            dt_fund = st.text_input("Data de Fundação (DD/MM/AAAA):")
             if st.form_submit_button("Salvar Empresa"):
                 if nome_emp and cnpj:
                     salvar_cliente(cnpj, "PJ", nome_emp, dt_fund=dt_fund)
                     st.success("Cliente PJ Cadastrado!")
                     st.rerun()
 
-# Fluxo Criar Pedido
+# Fluxo do botão Criar Pedido
 with criar_ped:
     st.markdown("<p style='color:black; font-weight:bold;'>Novo Pedido</p>", unsafe_allow_html=True)
     doc_busca = st.text_input("Digite o CPF ou CNPJ do Cliente:")
     if doc_busca:
         cliente_encontrado = buscar_cliente(doc_busca)
         if cliente_encontrado:
-            st.info(f"Cliente identificado: {cliente_encontrado}")
-            if st.button("Confirmar e Criar Pedido", type="primary", key="btn_confirmar_pedido_final"):
+            st.info(f"Cliente identificado: {cliente_encontrado[0]}")
+            if st.button("Confirmar e Criar Pedido", type="primary"):
                 criar_novo_pedido(doc_busca)
-                st.session_state.pedido_selecionado = None
-                st.rerun()  # Atualiza a tela na hora para o card aparecer
+                st.success("Pedido enviado para 'Pedido Criado'!")
+                st.rerun()
         else:
-            st.warning("Cliente não localizado. Criar mesmo assim?")
-            if st.button("Confirmar e Criar Pedido (Sem Cadastro)", type="primary", key="btn_criar_ped_sem_cadastro"):
-                criar_novo_pedido(doc_busca)
-                st.session_state.pedido_selecionado = None
-                st.rerun()  # Atualiza a tela na hora para o card aparecer
-
-# ---- JANELA DINÂMICA DE DETALHES ----
-if st.session_state.pedido_selecionado is not None:
-    row = st.session_state.pedido_selecionado
-    with st.container(border=True):
-        st.markdown(f"### ⚙️ Detalhes do Pedido P-{row['id']}")
-        st.write(f"**Cliente:** {row['nome']} | **Documento:** {row['documento_cliente']} ({row['tipo']})")
-        st.markdown("---")
-        
-        st.info(row['observacoes'] if row['observacoes'] else "Nenhuma informação adicionada.")
-        novas_obs = st.text_area("Adicionar Informações / Histórico Manual:", value=row['observacoes'], key=f"obs_edit_{row['id']}")
-        
-        arquivo = st.file_uploader("Adicionar arquivos:", key=f"file_edit_{row['id']}")
-        if arquivo:
-            st.caption(f"📎 Arquivo anexado: {arquivo.name}")
-            
-        etapas_lista = ["Pedido Criado", "Confirmar Pix", "Faturar Notas", "Faturar Entregar e Receber", "Cliente vem Buscar", "Entregas via Tecar", "Transportadora", "Pedido Finalizado"]
-        nova_fase = st.selectbox("Mover manualmente para:", etapas_lista, index=etapas_lista.index(row['etapa']), key=f"fase_edit_{row['id']}")
-        
-        col_salvar, col_cancelar = st.columns(2)
-        with col_salvar:
-            if st.button("💾 Salvar Alterações e Fechar", type="primary", key=f"save_btn_{row['id']}"):
-                atualizar_pedido(row['id'], nova_fase, novas_obs)
-                st.session_state.pedido_selecionado = None
-                st.rerun()
-        with col_cancelar:
-            if st.button("❌ Cancelar e Sair", key=f"cancel_btn_{row['id']}"):
-                st.session_state.pedido_selecionado = None
-                st.rerun()
+            st.error("Cliente não localizado. Realize o cadastro primeiro.")
 
 st.markdown("---")
 
-# 3. GERAÇÃO COMPLETA DAS 8 COLUNAS
+# 3. Definição das 8 Colunas Solicitadas
 etapas = [
     "Pedido Criado", "Confirmar Pix", "Faturar Notas", 
     "Faturar Entregar e Receber", "Cliente vem Buscar", 
@@ -265,3 +209,41 @@ etapas = [
 ]
 
 colunas_quadro = st.columns(len(etapas))
+df_pedidos = carregar_fluxo()
+
+for idx_etapa, etapa in enumerate(etapas):
+    with colunas_quadro[idx_etapa]:
+        st.markdown(f"""
+            <div class='topo-coluna'>
+                <b style='font-size:11px; color:#2d3748;'>{etapa.upper()}</b>
+            </div>
+        """, unsafe_allow_html=True)
+        
+        pedidos_fase = df_pedidos[df_pedidos["etapa"] == etapa] if not df_pedidos.empty else pd.DataFrame()
+        
+        for _, row in pedidos_fase.iterrows():
+            st.markdown(f"""
+                <div class='caixa-pedido'>
+                    <div class='id-pedido'>P-{row['id']}</div>
+                    <div class='nome-cliente'>{row['nome']}</div>
+                </div>
+            """, unsafe_allow_html=True)
+            
+            with st.popover("⚙️ Detalhes / Mover", use_container_width=True):
+                st.write(f"**Pedido:** P-{row['id']}")
+                st.write(f"**Cliente:** {row['nome']} ({row['documento_cliente']})")
+                
+                st.info(row['observacoes'] if row['observacoes'] else "Sem informações adicionadas.")
+                
+                novas_obs = st.text_area("Adicionar Informações / Histórico:", value=row['observacoes'], key=f"obs_{row['id']}")
+                
+                arquivo = st.file_uploader("Adicionar arquivos:", key=f"file_{row['id']}")
+                if arquivo:
+                    st.caption(f"📎 Arquivo anexado: {arquivo.name}")
+                
+                nova_fase = st.selectbox("Mover manualmente para:", etapas, index=etapas.index(etapa), key=f"fase_{row['id']}")
+                
+                if st.button("Salvar Alterações", key=f"save_{row['id']}", type="primary"):
+                    atualizar_pedido(row['id'], nova_fase, novas_obs)
+                    st.success("Pedido Atualizado!")
+                    st.rerun()
