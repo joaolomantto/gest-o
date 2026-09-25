@@ -5,8 +5,8 @@ import os
 import base64
 import hashlib
 
-# 1. Configuração e Conexão com Banco de Dados SQLite
-DB_FILE = "sistema_agendor_custom.db"
+# 1. Configuração e Conexão com Banco de Dados SQLite (v2 para evitar conflito)
+DB_FILE = "sistema_agendor_v2.db"
 UPLOAD_DIR = "arquivos_pedidos"
 
 # Cria a pasta para salvar os arquivos anexados, se não existir
@@ -45,16 +45,9 @@ def criar_banco():
         CREATE TABLE IF NOT EXISTS usuarios (
             username TEXT PRIMARY KEY,
             nome TEXT NOT NULL,
-            senha_hash TEXT NOT NULL DEFAULT ''
+            senha_hash TEXT NOT NULL
         )
     ''')
-    
-    # Garante de forma segura que a coluna de senha exista
-    try:
-        c.execute("ALTER TABLE usuarios ADD COLUMN senha_hash TEXT NOT NULL DEFAULT ''")
-    except sqlite3.OperationalError:
-        pass
-        
     conn.commit()
     conn.close()
 
@@ -143,11 +136,13 @@ def exibir_pdf(caminho_pdf):
     except Exception as e:
         st.error(f"Erro ao carregar o arquivo PDF: {e}")
 
+# Inicializa o banco de dados limpo
 criar_banco()
 
 # 2. Interface Estilizada e Configuração Inicial
 st.set_page_config(layout="wide", page_title="Gestão de Fluxo", page_icon="📋")
 
+# Controle de Sessão de Usuário
 if "usuario" not in st.session_state:
     st.session_state.usuario = None
 if "usuario_nome" not in st.session_state:
@@ -194,7 +189,7 @@ with st.sidebar:
             st.session_state.usuario_nome = None
             st.rerun()
 
-# Bloqueia a renderização caso não esteja logado
+# Se não houver sessão ativa, interrompe a execução do Kanban
 if not st.session_state.usuario:
     st.warning("⚠️ Faça login na barra lateral para carregar as informações do sistema.")
     st.stop()
@@ -259,7 +254,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-col_titulo, col_btn1, col_btn2 = st.columns()
+col_titulo, col_btn1, col_btn2 = st.columns([6, 2, 2])
 
 with col_titulo:
     st.title("📋 Painel de Controle")
@@ -273,11 +268,17 @@ with criar_cad:
     st.markdown("<p style='color:black; font-weight:bold;'>Novo Cliente</p>", unsafe_allow_html=True)
     tipo_pess = st.radio("Tipo de Pessoa", ["PESSOA FÍSICA", "PESSOA JURÍDICA"], horizontal=True)
     
-    # Modificado: Formulários totalmente planos e simplificados para evitar erros de tabs/indents no Streamlit
-    if tipo_pess == "PESSOA FÍSICA":
-        with st.form("form_pf", clear_on_submit=True):
-            nome_pf = st.text_input("Nome:")
-            cpf_pf = st.text_input("CPF:")
-            rg_pf = st.text_input("RG:")
-            dt_nasc_pf = st.text_input("Data de Nascimento (DD/MM/AAAA):")
-            orgao_pf = st.text_input("Órgão Emissor:")
+    with st.form("form_cliente", clear_on_submit=True):
+        if tipo_pess == "PESSOA FÍSICA":
+            nome = st.text_input("Nome:")
+            cpf = st.text_input("CPF:")
+            rg = st.text_input("RG:")
+            dt_nasc = st.text_input("Data de Nascimento (DD/MM/AAAA):")
+            orgao = st.text_input("Órgão Emissor:")
+            
+            if st.form_submit_button("Salvar Cliente"):
+                if nome and cpf:
+                    salvar_cliente(cpf, "PF", nome, rg, dt_nasc, orgao)
+                    st.success("Cliente PF Cadastrado!")
+                    st.rerun()
+                else:
