@@ -30,16 +30,15 @@ def criar_banco():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             documento_cliente TEXT NOT NULL,
             etapa TEXT NOT NULL,
-            observacoes TEXT DEFAULT '',
-            FOREIGN KEY(documento_cliente) REFERENCES clientes(documento)
+            observacoes TEXT DEFAULT ''
         )
     ''')
     
-    # Verifica e adiciona a coluna de arquivos se ela não existir
-    c.execute("PRAGMA table_info(pedidos)")
-    colunas = [col for col in c.fetchall()]
-    if "arquivo_caminho" not in colunas:
+    # CORREÇÃO DEFINITIVA: Tenta adicionar a coluna. Se der erro porque já existe, ele ignora com segurança.
+    try:
         c.execute("ALTER TABLE pedidos ADD COLUMN arquivo_caminho TEXT DEFAULT ''")
+    except sqlite3.OperationalError:
+        pass  # A coluna já existe, não faz nada
         
     conn.commit()
     conn.close()
@@ -264,7 +263,6 @@ for idx_etapa, etapa in enumerate(etapas):
                 nova_fase = st.selectbox("Mover para etapa:", etapas, index=etapas.index(row['etapa']), key=f"fase_{row['id']}")
                 novas_obs = st.text_area("Observações do pedido:", value=row['observacoes'], key=f"obs_{row['id']}")
                 
-                # Colunas internas para alinhar Salvar e Excluir
                 col_salvar, col_excluir = st.columns(2)
                 
                 with col_salvar:
@@ -277,3 +275,5 @@ for idx_etapa, etapa in enumerate(etapas):
                         
                         atualizar_pedido(row['id'], nova_fase, novas_obs, caminho_salvo)
                         st.rerun()
+                        
+                with col_excluir:
