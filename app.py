@@ -234,7 +234,7 @@ with criar_ped:
         else:
             st.error("Cliente não localizado. Realize o cadastro primeiro.")
 
-# ---- JANELA DE DETALHES (Aparece quando clica na caixinha e fecha voltando para a tela inicial) ----
+# ---- JANELA DE DETALHES ----
 if st.session_state.pedido_selecionado is not None:
     row = st.session_state.pedido_selecionado
     with st.container(border=True):
@@ -253,9 +253,12 @@ if st.session_state.pedido_selecionado is not None:
         nova_fase = st.selectbox("Mover manualmente para:", etapas_lista, index=etapas_lista.index(row['etapa']), key=f"fase_edit_{row['id']}")
         
         col_salvar, col_cancelar = st.columns(2)
-        with col_salvar:
-            if st.button("💾 Salvar Alterações e Fechar", type="primary", key=f"save_btn_{row['id']}"):
-                atualizar_pedido(row['id'], nova_fase, novas_obs)
-                st.session_state.pedido_selecionado = None  # Reseta para voltar à tela inicial
-                st.rerun()
-        with col_cancelar:
+        
+        # Correção definitiva aqui: botões posicionados de forma direta
+        if col_salvar.button("💾 Salvar Alterações e Fechar", type="primary", key=f"save_btn_{row['id']}"):
+            atualizar_pedido(row['id'], nova_fase, novas_obs)
+            st.session_state.pedido_selecionado = None
+            st.rerun()
+            
+        if col_cancelar.button("❌ Cancelar e Sair", key=f"cancel_btn_{row['id']}"):
+            st.session_state.pedido_selecionado = None
