@@ -2,6 +2,7 @@ import streamlit as st
 import sqlite3
 import pandas as pd
 import os
+import base64
 
 # 1. Configuração e Conexão com Banco de Dados SQLite
 DB_FILE = "sistema_agendor_custom.db"
@@ -172,7 +173,6 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# CORREÇÃO AQUI: Passando as proporções corretas (3 colunas) para eliminar o erro
 col_titulo, col_btn1, col_btn2 = st.columns([6, 2, 2])
 
 with col_titulo:
@@ -264,20 +264,17 @@ for idx_etapa, etapa in enumerate(etapas):
                 st.write(f"👤 **Autor do Pedido:** {row['autor'].title()}")
                 st.info(row['observacoes'] if row['observacoes'] else "Sem informações adicionadas.")
                 
+                # ATUALIZAÇÃO: Visualizador interno de arquivos na própria página
                 if row['arquivo_caminho'] and os.path.exists(row['arquivo_caminho']):
                     nome_arquivo = os.path.basename(row['arquivo_caminho'])
-                    st.markdown(f"📎 **Arquivo Disponível:** `{nome_arquivo}`")
+                    extensao = nome_arquivo.split('.')[-1].lower()
                     
-                    with open(row['arquivo_caminho'], "rb") as file_data:
-                        st.download_button(
-                            label="📥 Baixar / Abrir Arquivo Anexo",
-                            data=file_data,
-                            file_name=nome_arquivo,
-                            key=f"dl_{row['id']}",
-                            use_container_width=True
-                        )
-                elif row['arquivo_caminho']:
-                    st.warning("⚠️ Arquivo registrado, mas não localizado no servidor.")
-                
-                st.markdown("---")
-                
+                    st.markdown(f"📎 **Arquivo Anexado:** `{nome_arquivo}`")
+                    
+                    with open(row['arquivo_caminho'], "rb") as f:
+                        dados_arquivo = f.read()
+                    
+                    # Se for PDF, renderiza em um iframe interativo embutido
+                    if extensao == "pdf":
+                        base64_pdf = base64.b64encode(dados_arquivo).decode('utf-8')
+                        pdf_display = f'<iframe src="data:application/pdf;base64,{base64_pdf}" width="100%" height="400" type="application/pdf"></iframe>'
