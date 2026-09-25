@@ -64,7 +64,7 @@ def cadastrar_usuario(nome, cpf, email, dt_nasc, telefone):
         c.execute('''
             INSERT INTO usuarios (cpf, nome, email, data_nascimento, telefone, autorizado)
             VALUES (?, ?, ?, ?, ?, 0)
-        ''', (cpf, nome, email, dt_nasc, telefone))
+        ''', (cpf, nome, email, dt_nasc, telephone))
         conn.commit()
         sucesso = True
     except sqlite3.IntegrityError:
@@ -82,7 +82,6 @@ def checar_status_usuario(cpf):
 
 def listar_usuarios_pendentes():
     conn = sqlite3.connect(DB_FILE)
-    # CORRIGIDO: Nome da coluna ajustado de 'telephone' para 'telefone' de acordo com a criação da tabela
     df = pd.read_sql_query("SELECT cpf, nome, email, telefone FROM usuarios WHERE autorizado = 0", conn)
     conn.close()
     return df
@@ -158,6 +157,14 @@ if "usuario_nome" not in st.session_state:
 if "modo_chefe_emergencia" not in st.session_state:
     st.session_state["modo_chefe_emergencia"] = False
 
+# CORREÇÃO CRÍTICA DE REDIRECIONAMENTO: Captura o clique das senhas master ANTES do desenho dos bloqueios
+if not st.session_state["modo_chefe_emergencia"]:
+    if "senha_inicial" in st.sidebar and st.sidebar.get("senha_inicial") == CHAVE_MESTRE_CHEFE:
+        st.session_state["modo_chefe_emergencia"] = True
+        st.session_state["usuario_nome"] = "Administrador"
+        st.session_state["usuario_cpf"] = "MASTER"
+        st.rerun()
+
 st.markdown("""
     <style>
     div[data-testid="stExpander"] {
@@ -193,11 +200,10 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ----------------------------------------------------
-# INTERRUPÇÃO DE SEGURANÇA: SE JÁ ESTIVER LOGADO COMO MASTER, PULA TUDO
+# INTERRUPÇÃO DE SEGURANÇA SE NÃO FOR O CHEFE MESTRE LOGADO
 # ----------------------------------------------------
 if not st.session_state["modo_chefe_emergencia"]:
     
-    # Se não houver identificação na sessão do navegador, mostra as abas de cadastro/login
     if st.session_state["usuario_cpf"] == "":
         st.title("📋 Bem-vindo ao Sistema de Gestão")
         st.subheader("Primeiro acesso detectado. Por favor, identifique-se ou faça o seu cadastro.")
@@ -216,7 +222,7 @@ if not st.session_state["modo_chefe_emergencia"]:
                             st.session_state["usuario_nome"] = status[0]
                             st.rerun()
                         else:
-                            st.error("CPF não localizado no sistema. Vá na aba ao lado e realize o cadastro.")
+                            st.error("CPF não localizado no sistema. Realize o cadastro.")
                     else:
                         st.warning("Preencha o campo de CPF.")
                         
@@ -241,16 +247,11 @@ if not st.session_state["modo_chefe_emergencia"]:
                         st.error("Todos os campos do formulário são obrigatórios.")
         
         st.markdown("---")
-        with st.expander("🔑 Acesso Direto do Administrador (Chefe)"):
-            senha_direta = st.text_input("Digite a senha mestre para entrar sem cadastro:", type="password", key="senha_inicial")
-            if st.button("Ignorar e Entrar como Chefe"):
-                if senha_direta == CHAVE_MESTRE_CHEFE:
-                    st.session_state["modo_chefe_emergencia"] = True
-                    st.session_state["usuario_nome"] = "Administrador"
-                    st.session_state["usuario_cpf"] = "MASTER"
-                    st.rerun()
-                else:
-                    st.error("Senha mestre incorreta.")
-        st.stop()
-
-    # Se a pessoa se cadastrou mas ainda não foi liberada por você no banco, cai na tela de espera
+        # CORREÇÃO: Formulário direto no escopo para garantir persistência do clique do Chefe na Tela Inicial
+        senha_direta = st.text_input("🔑 Chave Mestre do Chefe (Entrar sem Cadastro):", type="password", key="senha_tit_chefe")
+        if st.button("Ignorar e Acessar Funis como Administrador"):
+            if senha_direta == CHAVE_MESTRE_CHEFE:
+                st.session_state["modo_chefe_emergencia"] = True
+                st.session_state["usuario_nome"] = "Administrador"
+                st.session_state["usuario_cpf"] = "MASTER"
+                st.rerun()
