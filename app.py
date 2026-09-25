@@ -78,12 +78,22 @@ criar_banco()
 # 2. Interface Estilizada e Minimalista
 st.set_page_config(layout="wide", page_title="Gestão de Fluxo", page_icon="📋")
 
-# Injeção de CSS Avançado para fazer a linha ir até o final da tela
+# Injeção de CSS para botões superiores amarelos e caixinhas quadradas
 st.markdown("""
     <style>
-    div[data-testid="stExpander"] { border: none !important; box-shadow: none !important; }
+    /* Estilo para transformar os expanders nos botões amarelos solicitados */
+    div[data-testid="stExpander"] {
+        background-color: #FFD700 !important;
+        border: 1px solid #E6C200 !important;
+        border-radius: 4px !important;
+        box-shadow: none !important;
+    }
+    div[data-testid="stExpander"] p {
+        color: #000000 !important;
+        font-weight: bold !important;
+    }
     
-    /* Força o container das colunas a ocupar espaço vertical e exibe as divisórias contínuas */
+    /* Configuração e linha divisória das colunas de cima até embaixo */
     div[data-testid="stHorizontalBlock"] {
         align-items: stretch !important;
     }
@@ -91,11 +101,10 @@ st.markdown("""
     div[data-testid="column"] {
         padding-right: 15px !important;
         padding-left: 15px !important;
-        border-right: 1px solid #e2e8f0 !important; /* Linha cinza clara idêntica ao Agendor */
-        min-height: 80vh !important; /* Estende a coluna e a linha até embaixo na tela */
+        border-right: 1px solid #e2e8f0 !important;
+        min-height: 80vh !important;
     }
     
-    /* Remove a linha da última coluna para não sobrar traço no canto direito */
     div[data-testid="column"]:last-child {
         border-right: none !important;
     }
@@ -114,7 +123,7 @@ st.markdown("""
     .caixa-pedido {
         background-color: #ffffff;
         border: 1px solid #e2e8f0;
-        border-top: 3px solid #FFD700; /* Detalhe em amarelo */
+        border-top: 3px solid #FFD700;
         padding: 12px;
         border-radius: 4px;
         margin-bottom: 8px;
@@ -136,21 +145,21 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Layout do Cabeçalho
-col_titulo, col_btn1, col_btn2 = st.columns()
+# Layout do Cabeçalho - Ajustado com proporções (6 partes para o título, 2 para cada botão)
+col_titulo, col_btn1, col_btn2 = st.columns([6, 2, 2])
 
 with col_titulo:
     st.title("📋 Painel de Controle")
 
-# Botões superiores amarelos integrados
+# Botões superiores amarelos empurrados para o canto direito
 with col_btn1:
-    criar_cad = st.expander("👤 Criar Cadastro")
+    criar_cad = st.expander("👤 CRIAR CADASTRO")
 with col_btn2:
-    criar_ped = st.expander("📦 Criar Pedido")
+    criar_ped = st.expander("📦 CRIAR PEDIDO")
 
 # Fluxo do botão Criar Cadastro
 with criar_cad:
-    st.subheader("Cadastro de Cliente")
+    st.markdown("<p style='color:black; font-weight:bold;'>Novo Cliente</p>", unsafe_allow_html=True)
     tipo_pess = st.radio("Tipo de Pessoa", ["PESSOA FÍSICA", "PESSOA JURÍDICA"], horizontal=True)
     
     with st.form("form_cliente", clear_on_submit=True):
@@ -177,7 +186,7 @@ with criar_cad:
 
 # Fluxo do botão Criar Pedido
 with criar_ped:
-    st.subheader("Abertura de Pedido")
+    st.markdown("<p style='color:black; font-weight:bold;'>Novo Pedido</p>", unsafe_allow_html=True)
     doc_busca = st.text_input("Digite o CPF ou CNPJ do Cliente:")
     if doc_busca:
         cliente_encontrado = buscar_cliente(doc_busca)
@@ -204,7 +213,6 @@ df_pedidos = carregar_fluxo()
 
 for idx_etapa, etapa in enumerate(etapas):
     with colunas_quadro[idx_etapa]:
-        # Caixa de título estilizada para cada coluna do topo
         st.markdown(f"""
             <div class='topo-coluna'>
                 <b style='font-size:11px; color:#2d3748;'>{etapa.upper()}</b>
@@ -214,7 +222,6 @@ for idx_etapa, etapa in enumerate(etapas):
         pedidos_fase = df_pedidos[df_pedidos["etapa"] == etapa] if not df_pedidos.empty else pd.DataFrame()
         
         for _, row in pedidos_fase.iterrows():
-            # Estrutura HTML da caixinha quadrada limpa
             st.markdown(f"""
                 <div class='caixa-pedido'>
                     <div class='id-pedido'>P-{row['id']}</div>
@@ -222,7 +229,6 @@ for idx_etapa, etapa in enumerate(etapas):
                 </div>
             """, unsafe_allow_html=True)
             
-            # Botão discreto de gerenciamento logo abaixo de cada caixinha
             with st.popover("⚙️ Detalhes / Mover", use_container_width=True):
                 st.write(f"**Pedido:** P-{row['id']}")
                 st.write(f"**Cliente:** {row['nome']} ({row['documento_cliente']})")
@@ -241,6 +247,3 @@ for idx_etapa, etapa in enumerate(etapas):
                     atualizar_pedido(row['id'], nova_fase, novas_obs)
                     st.success("Pedido Atualizado!")
                     st.rerun()
-
-
-
