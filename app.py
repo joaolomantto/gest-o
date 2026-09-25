@@ -254,8 +254,8 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Configuração estável de colunas superiores
-col_titulo, col_btn1, col_btn2 = st.columns()
+# Configuração estável de colunas superiores (Passando o número exato 3 em formato de tupla)
+col_titulo, col_btn1, col_btn2 = st.columns([4, 3, 3])
 
 with col_titulo:
     st.title("📋 Painel de Controle")
@@ -279,5 +279,3 @@ with criar_cad:
             pf_orgao = st.text_input("Órgão Emissor:")
             submit_pf = st.form_submit_button("Salvar Cliente Física")
             
-        if submit_pf:
-            if pf_nome.strip() and pf_cpf.strip():
