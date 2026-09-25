@@ -1,9 +1,15 @@
 import streamlit as st
 import sqlite3
 import pandas as pd
+import os
 
 # 1. Configuração e Conexão com Banco de Dados SQLite
 DB_FILE = "sistema_agendor_custom.db"
+UPLOAD_DIR = "arquivos_pedidos"
+
+# Cria a pasta para salvar os arquivos anexados, se não existir
+if not os.path.exists(UPLOAD_DIR):
+    os.makedirs(UPLOAD_DIR)
 
 def criar_banco():
     conn = sqlite3.connect(DB_FILE)
@@ -19,12 +25,14 @@ def criar_banco():
             data_fundacao TEXT
         )
     ''')
+    # ATUALIZADO: Adicionada a coluna 'arquivo_caminho' para registrar os anexos
     c.execute('''
         CREATE TABLE IF NOT EXISTS pedidos (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             documento_cliente TEXT NOT NULL,
             etapa TEXT NOT NULL,
             observacoes TEXT DEFAULT '',
+            arquivo_caminho TEXT DEFAULT '',
             FOREIGN KEY(documento_cliente) REFERENCES clientes(documento)
         )
     ''')
@@ -56,10 +64,20 @@ def criar_novo_pedido(doc):
     conn.commit()
     conn.close()
 
-def atualizar_pedido(id_ped, nova_etapa, novas_obs):
+def atualizar_pedido(id_ped, nova_etapa, novas_obs, arquivo_path=None):
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
-    c.execute("UPDATE pedidos SET etapa = ?, observacoes = ? WHERE id = ?", (nova_etapa, novas_obs, id_ped))
+    if arquivo_path:
+        c.execute("UPDATE pedidos SET etapa = ?, observacoes = ?, arquivo_caminho = ? WHERE id = ?", (nova_etapa, novas_obs, arquivo_path, id_ped))
+    else:
+        c.execute("UPDATE pedidos SET etapa = ?, observacoes = ? WHERE id = ?", (nova_etapa, novas_obs, id_ped))
+    conn.commit()
+    conn.close()
+
+def atualizar_etapa_rapida(id_ped, nova_etapa):
+    conn = sqlite3.connect(DB_FILE)
+    c = conn.cursor()
+    c.execute("UPDATE pedidos SET etapa = ? WHERE id = ?", (nova_etapa, id_ped))
     conn.commit()
     conn.close()
 
@@ -73,7 +91,7 @@ def excluir_pedido(id_ped):
 def carregar_fluxo():
     conn = sqlite3.connect(DB_FILE)
     df = pd.read_sql_query('''
-        SELECT p.id, p.documento_cliente, p.etapa, p.observacoes, c.nome, c.tipo
+        SELECT p.id, p.documento_cliente, p.etapa, p.observacoes, p.arquivo_caminho, c.nome, c.tipo
         FROM pedidos p
         JOIN clientes c ON p.documento_cliente = c.documento
     ''', conn)
@@ -85,7 +103,6 @@ criar_banco()
 # 2. Interface Estilizada e Minimalista
 st.set_page_config(layout="wide", page_title="Gestão de Fluxo", page_icon="📋")
 
-# CSS Ajustado para garantir alinhamento perfeito dos blocos superiores
 st.markdown("""
     <style>
     div[data-testid="stExpander"] {
@@ -114,7 +131,6 @@ st.markdown("""
         border-right: none !important;
     }
     
-    /* MODIFICAÇÃO AQUI: Altura fixa e Flexbox para alinhar textos longos como "Faturar Entregar e Receber" */
     .topo-coluna {
         background-color: #f8fafc;
         padding: 6px;
@@ -134,7 +150,7 @@ st.markdown("""
         border-top: 3px solid #FFD700;
         padding: 12px;
         border-radius: 4px;
-        margin-bottom: 8px;
+        margin-bottom: 4px;
         box-shadow: 0px 1px 3px rgba(0, 0, 0, 0.05);
     }
     
@@ -153,8 +169,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Definição correta das colunas do cabeçalho de botões superiores
-col_titulo, col_btn1, col_btn2 = st.columns([6, 2, 2])
+col_titulo, col_btn1, col_btn2 = st.columns()
 
 with col_titulo:
     st.title("📋 Painel de Controle")
@@ -164,10 +179,10 @@ with col_btn1:
 with col_btn2:
     criar_ped = st.expander("📦 CRIAR PEDIDO")
 
+# [Mantidos fluxos padrão de Criar Cadastro e Criar Pedido...]
 with criar_cad:
     st.markdown("<p style='color:black; font-weight:bold;'>Novo Cliente</p>", unsafe_allow_html=True)
     tipo_pess = st.radio("Tipo de Pessoa", ["PESSOA FÍSICA", "PESSOA JURÍDICA"], horizontal=True)
-    
     with st.form("form_cliente", clear_on_submit=True):
         if tipo_pess == "PESSOA FÍSICA":
             nome = st.text_input("Nome:")
@@ -196,7 +211,7 @@ with criar_ped:
     if doc_busca:
         cliente_encontrado = buscar_cliente(doc_busca)
         if cliente_encontrado:
-            st.info(f"Cliente identificado: {cliente_encontrado[0]}")
+            st.info(f"Cliente identificado: {cliente_encontrado}")
             if st.button("Confirmar e Criar Pedido", type="primary"):
                 criar_novo_pedido(doc_busca)
                 st.success("Pedido enviado para 'Pedido Criado'!")
@@ -227,6 +242,7 @@ for idx_etapa, etapa in enumerate(etapas):
         pedidos_fase = df_pedidos[df_pedidos["etapa"] == etapa] if not df_pedidos.empty else pd.DataFrame()
         
         for _, row in pedidos_fase.iterrows():
+            # Caixinha Visual do Pedido
             st.markdown(f"""
                 <div class='caixa-pedido'>
                     <div class='id-pedido'>P-{row['id']}</div>
@@ -234,24 +250,30 @@ for idx_etapa, etapa in enumerate(etapas):
                 </div>
             """, unsafe_allow_html=True)
             
-            with st.popover("⚙️ Detalhes / Mover", use_container_width=True):
+            # ATUALIZAÇÃO 1: Botões rápidos abaixo do card para MOVER SEM ENTRAR EM DETALHES
+            col_esq, col_dir = st.columns(2)
+            with col_esq:
+                if idx_etapa > 0: # Só mostra se não for a primeira etapa
+                    if st.button(f"◀ Voltar", key=f"btn_esq_{row['id']}", use_container_width=True, help="Mover para a etapa anterior"):
+                        atualizar_etapa_rapida(row['id'], etapas[idx_etapa - 1])
+                        st.rerun()
+            with col_dir:
+                if idx_etapa < len(etapas) - 1: # Só mostra se não for a última etapa
+                    if st.button(f"Avançar ▶", key=f"btn_dir_{row['id']}", use_container_width=True, help="Mover para a próxima etapa"):
+                        atualizar_etapa_rapida(row['id'], etapas[idx_etapa + 1])
+                        st.rerun()
+            
+            # Popover de Detalhes Completo
+            with st.popover("⚙️ Detalhes / Opções", use_container_width=True):
                 st.write(f"**Pedido:** P-{row['id']}")
                 st.write(f"**Cliente:** {row['nome']} ({row['documento_cliente']})")
                 st.info(row['observacoes'] if row['observacoes'] else "Sem informações adicionadas.")
                 
+                # Exibe o arquivo anexado caso ele exista no banco
+                if row['arquivo_caminho']:
+                    nome_arquivo = os.path.basename(row['arquivo_caminho'])
+                    st.markdown(f"📎 **Arquivo Anexado:** `{nome_arquivo}`")
+                
                 st.markdown("---")
                 
-                nova_fase = st.selectbox("Mover para etapa:", etapas, index=etapas.index(row['etapa']), key=f"fase_{row['id']}")
-                novas_obs = st.text_area("Observações do pedido:", value=row['observacoes'], key=f"obs_{row['id']}")
-                
-                col_salvar, col_excluir = st.columns(2)
-                
-                with col_salvar:
-                    if st.button("Salvar Mudanças", key=f"btn_salvar_{row['id']}", type="primary", use_container_width=True):
-                        atualizar_pedido(row['id'], nova_fase, novas_obs)
-                        st.rerun()
-                        
-                with col_excluir:
-                    if st.button("🚫 Excluir Pedido", key=f"btn_excluir_{row['id']}", type="secondary", use_container_width=True):
-                        excluir_pedido(row['id'])
-                        st.rerun()
+                # ATUALIZAÇÃO 2: Adicionado campo para carregar arquivos (PDF, Imagens, Planilhas, etc)
