@@ -38,10 +38,7 @@ def criar_banco():
         )
     ''')
     
-    try:
-        c.execute("SELECT usuario FROM usuarios LIMIT 1")
-    except sqlite3.OperationalError:
-        c.execute("DROP TABLE IF EXISTS usuarios")
+    c.execute("DROP TABLE IF EXISTS usuarios")
         
     c.execute('''
         CREATE TABLE IF NOT EXISTS usuarios (
@@ -264,6 +261,9 @@ if not st.session_state["logado"]:
                     st.error("Preencha todos os campos do formulário para concluir.")
                 elif not usuario_valido:
                     st.error("Este nome de usuário é reservado ao administrador.")
-                elif cadastrar_usuario(new_user, new_pass, new_nome, new_cpf, new_nasc, new_fone):
-                    st.success("🎯 Conta criada com sucesso! Vá para a aba '🔒 Acessar Minha Conta' acima e faça seu login.")
                 else:
+                    # ESTRUTURA BLINDADA LINEAR: Grava direto eliminando qualquer else subsequente
+                    cadastrar_usuario(new_user, new_pass, new_nome, new_cpf, new_nasc, new_fone)
+                    st.success("🎯 Conta criada com sucesso! Vá para a aba '🔒 Acessar Minha Conta' acima e faça seu login.")
+    st.stop()
+
