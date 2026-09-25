@@ -8,7 +8,6 @@ import base64
 DB_FILE = "sistema_agendor_custom.db"
 UPLOAD_DIR = "arquivos_pedidos"
 
-# Credenciais fixas do Chefe Supremo
 USER_MASTER = "admintecar.renault"
 SENHA_MASTER = "admin123"
 
@@ -79,7 +78,7 @@ def cadastrar_usuario(usuario, senha, nome, cpf, dt_nasc, telephone):
     try:
         c.execute("DELETE FROM usuarios WHERE usuario = ?", (usuario.strip().lower(),))
         c.execute('''
-            INSERT INTO usuarios (usuario, senha, nome, cpf, data_nascimento, telefone, autorizado)
+            INSERT INTO usuarios (usuario, senha, nome, cpf, data_nascimento, telephone, autorizado)
             VALUES (?, ?, ?, ?, ?, ?, 'PENDENTE')
         ''', (usuario.strip().lower(), senha, nome, cpf, dt_nasc, telephone))
         conn.commit()
@@ -96,7 +95,7 @@ def checar_status_usuario(usuario):
     res = c.fetchone()
     conn.close()
     if res:
-        return res
+        return res[0]
     return "PENDENTE"
 
 def realizar_login(usuario, senha):
@@ -112,12 +111,12 @@ def realizar_login(usuario, senha):
     conn.close()
     
     if res:
-        return {"usuario": usuario_limpo, "nome": res, "status": res}
+        return {"usuario": usuario_limpo, "nome": res[0], "status": res[1]}
     return None
 
 def listar_usuarios_pendentes():
     conn = sqlite3.connect(DB_FILE)
-    df = pd.read_sql_query("SELECT usuario, nome, cpf, telefone FROM usuarios WHERE autorizado = 'PENDENTE'", conn)
+    df = pd.read_sql_query("SELECT usuario, nome, cpf, telephone FROM usuarios WHERE autorizado = 'PENDENTE'", conn)
     conn.close()
     return df
 
@@ -229,12 +228,8 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# ----------------------------------------------------
-# SISTEMA DE LOGIN E CADASTRO EM ABAS
-# ----------------------------------------------------
 if not st.session_state["logado"]:
     st.title("📋 Portal de Acesso — Gestão de Fluxo")
-    
     tab_login, tab_cadastro = st.tabs(["🔒 Acessar Minha Conta", "👤 Criar Nova Conta"])
     
     with tab_login:
@@ -267,4 +262,6 @@ if not st.session_state["logado"]:
             elif new_user.strip().lower() == USER_MASTER:
                 st.error("Este nome de usuário é reservado ao administrador.")
             else:
-                # Mudança definitiva: executa e valida sem criar blocos aninhados perigosos
+                if cadastrar_usuario(new_user, new_pass, new_nome, new_cpf, new_nasc, new_fone):
+                    st.success("🎯 Conta criada com sucesso! Vá para a aba '🔒 Acessar Minha Conta' acima e faça seu login.")
+                else:
