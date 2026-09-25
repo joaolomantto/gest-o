@@ -63,7 +63,6 @@ def atualizar_pedido(id_ped, nova_etapa, novas_obs):
     conn.commit()
     conn.close()
 
-# NOVA FUNÇÃO: Remove o pedido com base no ID recebido
 def excluir_pedido(id_ped):
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
@@ -86,10 +85,8 @@ criar_banco()
 # 2. Interface Estilizada e Minimalista
 st.set_page_config(layout="wide", page_title="Gestão de Fluxo", page_icon="📋")
 
-# Injeção de CSS para botões superiores amarelos e caixinhas quadradas
 st.markdown("""
     <style>
-    /* Estilo para transformar os expanders nos botões amarelos solicitados */
     div[data-testid="stExpander"] {
         background-color: #FFD700 !important;
         border: 1px solid #E6C200 !important;
@@ -101,7 +98,6 @@ st.markdown("""
         font-weight: bold !important;
     }
     
-    /* Configuração e linha divisória das colunas de cima até embaixo */
     div[data-testid="stHorizontalBlock"] {
         align-items: stretch !important;
     }
@@ -117,7 +113,6 @@ st.markdown("""
         border-right: none !important;
     }
     
-    /* Cabeçalho cinza minimalista para as etapas */
     .topo-coluna {
         background-color: #f8fafc;
         padding: 8px;
@@ -127,7 +122,6 @@ st.markdown("""
         border: 1px solid #edf2f7;
     }
     
-    /* Caixinha quadrada do pedido (Estilo Agendor) */
     .caixa-pedido {
         background-color: #ffffff;
         border: 1px solid #e2e8f0;
@@ -153,19 +147,16 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Layout do Cabeçalho - Ajustado com proporções (6 partes para o título, 2 para cada botão)
 col_titulo, col_btn1, col_btn2 = st.columns([6, 2, 2])
 
 with col_titulo:
     st.title("📋 Painel de Controle")
 
-# Botões superiores amarelos empurrados para o canto direito
 with col_btn1:
     criar_cad = st.expander("👤 CRIAR CADASTRO")
 with col_btn2:
     criar_ped = st.expander("📦 CRIAR PEDIDO")
 
-# Fluxo do botão Criar Cadastro
 with criar_cad:
     st.markdown("<p style='color:black; font-weight:bold;'>Novo Cliente</p>", unsafe_allow_html=True)
     tipo_pess = st.radio("Tipo de Pessoa", ["PESSOA FÍSICA", "PESSOA JURÍDICA"], horizontal=True)
@@ -192,7 +183,6 @@ with criar_cad:
                     st.success("Cliente PJ Cadastrado!")
                     st.rerun()
 
-# Fluxo do botão Criar Pedido
 with criar_ped:
     st.markdown("<p style='color:black; font-weight:bold;'>Novo Pedido</p>", unsafe_allow_html=True)
     doc_busca = st.text_input("Digite o CPF ou CNPJ do Cliente:")
@@ -209,7 +199,7 @@ with criar_ped:
 
 st.markdown("---")
 
-# 3. Definição das 8 Colunas Solicitadas
+# 3. Definição das 8 Colunas
 etapas = [
     "Pedido Criado", "Confirmar Pix", "Faturar Notas", 
     "Faturar Entregar e Receber", "Cliente vem Buscar", 
@@ -242,25 +232,21 @@ for idx_etapa, etapa in enumerate(etapas):
                 st.write(f"**Cliente:** {row['nome']} ({row['documento_cliente']})")
                 st.info(row['observacoes'] if row['observacoes'] else "Sem informações adicionadas.")
                 
-                # ADICIONADO: Seção para alteração de etapas ou exclusão do registro
                 st.markdown("---")
                 
-                # Campos de edição rápida para salvar/atualizar notas e mudar de coluna
                 nova_fase = st.selectbox("Mover para etapa:", etapas, index=etapas.index(row['etapa']), key=f"fase_{row['id']}")
                 novas_obs = st.text_area("Observações do pedido:", value=row['observacoes'], key=f"obs_{row['id']}")
                 
-                # Alinhamento dos botões Salvar e Excluir
                 col_salvar, col_excluir = st.columns(2)
                 
                 with col_salvar:
                     if st.button("Salvar Mudanças", key=f"btn_salvar_{row['id']}", type="primary", use_container_width=True):
                         atualizar_pedido(row['id'], nova_fase, novas_obs)
-                        st.success("Pedido atualizado!")
+                        # ATUALIZAÇÃO: O st.rerun limpa o estado de abertura dos popovers e renderiza as novas abas direto
                         st.rerun()
                         
                 with col_excluir:
-                    # Botão vermelho estilizado nativamente no Streamlit
                     if st.button("🚫 Excluir Pedido", key=f"btn_excluir_{row['id']}", type="secondary", use_container_width=True):
                         excluir_pedido(row['id'])
-                        st.toast(f"Pedido P-{row['id']} excluído com sucesso!")
+                        # ATUALIZAÇÃO: Exclui do banco e força o fechamento limpando a interface das colunas imediatamente
                         st.rerun()
