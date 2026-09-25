@@ -65,44 +65,22 @@ def atualizar_pedido(id_ped, nova_etapa, novas_obs):
 
 def carregar_fluxo():
     conn = sqlite3.connect(DB_FILE)
-    # Mudança para LEFT JOIN para garantir que o pedido apareça mesmo se houver erro no cadastro do doc
     df = pd.read_sql_query('''
-        SELECT p.id, p.documento_cliente, p.etapa, p.observacoes, IFNULL(c.nome, 'Cliente s/ Cadastro') as nome, IFNULL(c.tipo, 'PF') as tipo
+        SELECT p.id, p.documento_cliente, p.etapa, p.observacoes, c.nome, c.tipo
         FROM pedidos p
-        LEFT JOIN clientes c ON p.documento_cliente = c.documento
+        JOIN clientes c ON p.documento_cliente = c.documento
     ''', conn)
     conn.close()
     return df
 
 criar_banco()
 
-# Lista global com as 8 etapas solicitadas
-ETAPAS_GLOBAL = [
-    "Pedido Criado", "Confirmar Pix", "Faturar Notas", 
-    "Faturar Entregar e Receber", "Cliente vem Buscar", 
-    "Entregas via Tecar", "Transportadora", "Pedido Finalizado"
-]
-
-# Inicialização de controle de janelas na memória do navegador
-if "pedido_selecionado" not in st.session_state:
-    st.session_state.pedido_selecionado = None
-
-# 2. Interface Estilizada e Configuração de Cores (Design Minimalista Branco/Preto)
+# 2. Interface Avançada e Design Minimalista
 st.set_page_config(layout="wide", page_title="Gestão de Fluxo", page_icon="📋")
 
-# Aplicação de CSS Inteligente - Forçando Colunas Fixas de cima até embaixo
+# Estilização Inteligente em CSS
 st.markdown("""
     <style>
-    /* Força o plano de fundo geral para BRANCO absoluto */
-    .stApp, [data-testid="stAppViewContainer"], [data-testid="stHeader"], [data-testid="stMainBlockContainer"] {
-        background-color: #ffffff !important;
-    }
-    
-    /* Força todos os textos para PRETO */
-    h1, h2, h3, h4, h5, h6, p, span, label, li, div, .stMarkdown, p font {
-        color: #000000 !important;
-    }
-
     div[data-testid="stExpander"] {
         background-color: #FFD700 !important;
         border: 1px solid #E6C200 !important;
@@ -113,32 +91,30 @@ st.markdown("""
         font-weight: bold !important;
     }
     
-    /* Força as divisões de colunas irem de cima até embaixo (Linhas divisórias contínuas) */
+    /* Força as divisões de colunas irem de cima até embaixo */
     div[data-testid="stHorizontalBlock"] {
         align-items: stretch !important;
-        background-color: #ffffff !important;
     }
     
     div[data-testid="column"] {
         padding-right: 10px !important;
         padding-left: 10px !important;
-        border-right: 1px solid #cccccc !important; /* Linha de divisa cinza */
-        min-height: 75vh !important; /* Mantém a linha descendo pela tela */
+        border-right: 1px solid #d1d5db !important; /* Divisa cinza nítida */
     }
     
     div[data-testid="column"]:last-child {
         border-right: none !important;
     }
     
-    /* CAIXA DE TÍTULO SUPERIOR: Mantém o alinhamento horizontal fixo */
+    /* CORREÇÃO DO ALINHAMENTO: Força altura idêntica para todas as caixas de título */
     .topo-coluna {
         background-color: #ffffff;
-        border: 1px solid #000000;
+        border: 1px solid #e2e8f0;
         padding: 8px 4px;
         border-radius: 4px;
         text-align: center;
         margin-bottom: 20px;
-        height: 58px;
+        height: 55px; /* Altura fixa para alinhar caixas maiores */
         display: flex;
         align-items: center;
         justify-content: center;
@@ -148,42 +124,65 @@ st.markdown("""
     .texto-topo {
         font-size: 10px;
         font-weight: bold;
-        color: #000000 !important;
+        color: #1a202c;
         line-height: 1.2;
     }
     
-    /* CAIXINHA QUADRADA DO PEDIDO COM ZOOM DELAY DE 0,8s */
-    div.element-container button[data-testid="stBaseButton-secondary"] {
-        background-color: #ffffff !important;
-        border: 1px solid #babcbf !important;
-        border-top: 4px solid #FFD700 !important; /* Detalhe amarelo superior */
-        border-radius: 4px !important;
-        padding: 12px !important;
-        width: 100% !important;
-        height: auto !important;
-        min-height: 85px !important;
-        text-align: left !important;
-        box-shadow: 0px 1px 3px rgba(0, 0, 0, 0.08) !important;
-        display: block !important;
-        transition: transform 0.3s ease, box-shadow 0.3s ease !important;
-        transition-delay: 0.8s !important; /* Zoom com delay de 0.8s */
+    /* EFEITO DE ZOOM COM DELAY DE 0,8 SEGUNDOS NA CAIXINHA DO PEDIDO */
+    .container-pedido {
+        position: relative;
+        background-color: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-top: 4px solid #FFD700;
+        border-radius: 4px;
+        margin-bottom: 12px;
+        box-shadow: 0px 1px 3px rgba(0, 0, 0, 0.05);
+        transition: transform 0.3s ease;
+        transition-delay: 0.8s; /* Só aplica o zoom se o mouse ficar parado por 0,8s */
     }
     
-    div.element-container button[data-testid="stBaseButton-secondary"] p {
-        color: #000000 !important;
-        font-weight: bold !important;
-        white-space: pre-wrap !important;
+    .container-pedido:hover {
+        transform: scale(1.06); /* Pequeno zoom de destaque */
+        box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.12);
+        z-index: 10;
     }
     
-    div.element-container button[data-testid="stBaseButton-secondary"]:hover {
-        transform: scale(1.06) !important;
-        box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.15) !important;
-        background-color: #ffffff !important;
+    /* Estilo interno do Card */
+    .conteudo-card {
+        padding: 12px;
+        pointer-events: none; /* Deixa o clique passar para o botão invisível atrás */
+    }
+    
+    .id-pedido {
+        font-size: 13px;
+        font-weight: bold;
+        color: #1a202c;
+        margin-bottom: 4px;
+    }
+    
+    .nome-cliente {
+        font-size: 12px;
+        color: #4a5568;
+        word-wrap: break-word;
     }
 
-    input, textarea, select {
-        color: #000000 !important;
-        background-color: #ffffff !important;
+    /* Transforma o botão nativo do Popover em uma camada invisível por cima da caixa */
+    div[data-testid="stPopover"] {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+    }
+    div[data-testid="stPopover"] > button {
+        width: 100% !important;
+        height: 100% !important;
+        background: transparent !important;
+        border: none !important;
+        color: transparent !important;
+        box-shadow: none !important;
+        padding: 0 !important;
+        margin: 0 !important;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -196,7 +195,6 @@ with col_titulo:
 
 with col_btn1:
     criar_cad = st.expander("👤 CRIAR CADASTRO")
-
 with col_btn2:
     criar_ped = st.expander("📦 CRIAR PEDIDO")
 
@@ -240,28 +238,54 @@ with criar_ped:
                 st.success("Pedido enviado para 'Pedido Criado'!")
                 st.rerun()
         else:
-            # CORREÇÃO: Cria o pedido direto mesmo se o cliente ainda não tiver cadastro
-            st.warning("Cliente não localizado no banco, mas criando pedido diretamente.")
-            if st.button("Criar Pedido Direto", type="primary"):
-                criar_novo_pedido(doc_busca)
-                st.success("Pedido criado direto na primeira coluna!")
-                st.rerun()
+            st.error("Cliente não localizado. Realize o cadastro primeiro.")
 
-# ---- JANELA DE DETALHES ----
-if st.session_state.pedido_selecionado is not None:
-    row = st.session_state.pedido_selecionado
-    with st.container(border=True):
-        st.markdown(f"### ⚙️ Detalhes e Informações do Pedido P-{row['id']}")
-        st.write(f"**Cliente:** {row['nome']} | **Documento:** {row['documento_cliente']} ({row['tipo']})")
-        st.markdown("---")
+st.markdown("---")
+
+# 3. Geração das 8 Colunas Alinhadas
+etapas = [
+    "Pedido Criado", "Confirmar Pix", "Faturar Notas", 
+    "Faturar Entregar e Receber", "Cliente vem Buscar", 
+    "Entregas via Tecar", "Transportadora", "Pedido Finalizado"
+]
+
+colunas_quadro = st.columns(len(etapas))
+df_pedidos = carregar_fluxo()
+
+for idx_etapa, etapa in enumerate(etapas):
+    with colunas_quadro[idx_etapa]:
+        # Caixa superior com tamanho fixado e centralizado para não quebrar alinhamento
+        st.markdown(f"""
+            <div class='topo-coluna'>
+                <span class='texto-topo'>{etapa.upper()}</span>
+            </div>
+        """, unsafe_allow_html=True)
         
-        st.info(row['observacoes'] if row['observacoes'] else "Nenhuma informação adicionada.")
-        novas_obs = st.text_area("Adicionar Informações / Histórico Manual:", value=row['observacoes'], key=f"obs_edit_{row['id']}")
+        pedidos_fase = df_pedidos[df_pedidos["etapa"] == etapa] if not df_pedidos.empty else pd.DataFrame()
         
-        arquivo = st.file_uploader("Adicionar arquivos:", key=f"file_edit_{row['id']}")
-        if arquivo:
-            st.caption(f"📎 Arquivo anexado: {arquivo.name}")
+        for _, row in pedidos_fase.iterrows():
+            # Estrutura unificada: a própria caixa quadrada responde pelo clique do popover
+            st.markdown(f"""
+                <div class='container-pedido'>
+                    <div class='conteudo-card'>
+                        <div class='id-pedido'>P-{row['id']}</div>
+                        <div class='nome-cliente'>{row['nome']}</div>
+                    </div>
+                </div>
+            """, unsafe_allow_html=True)
             
-        nova_fase = st.selectbox("Mover manualmente para:", ETAPAS_GLOBAL, index=ETAPAS_GLOBAL.index(row['etapa']), key=f"fase_edit_{row['id']}")
-        
-        col_salvar, col_cancelar = st.columns(2)
+            # Popover invisível colocado perfeitamente sobre a caixa usando CSS absoluto
+            with st.popover("", use_container_width=True):
+                st.markdown(f"### 📦 Detalhes do Pedido P-{row['id']}")
+                st.write(f"**Cliente:** {row['nome']}")
+                st.write(f"**Documento:** {row['documento_cliente']} ({row['tipo']})")
+                st.markdown("---")
+                
+                st.info(row['observacoes'] if row['observacoes'] else "Nenhuma informação ou histórico adicionado.")
+                
+                novas_obs = st.text_area("Adicionar Informações / Histórico Manual:", value=row['observacoes'], key=f"obs_{row['id']}")
+                
+                arquivo = st.file_uploader("Anexar Arquivos / Notas:", key=f"file_{row['id']}")
+                if arquivo:
+                    st.caption(f"📎 Arquivo carregado: {arquivo.name}")
+                
