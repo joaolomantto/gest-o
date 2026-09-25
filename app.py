@@ -254,7 +254,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Divisão correta de colunas para o topo
+# Configuração estável de colunas superiores
 col_titulo, col_btn1, col_btn2 = st.columns([6, 2, 2])
 
 with col_titulo:
@@ -277,7 +277,7 @@ with criar_cad:
             pf_rg = st.text_input("RG:")
             pf_dt_nasc = st.text_input("Data de Nascimento (DD/MM/AAAA):")
             pf_orgao = st.text_input("Órgão Emissor:")
-            
             submit_pf = st.form_submit_button("Salvar Cliente Física")
-            if submit_pf:
-                if pf_nome.strip() and pf_cpf.strip():
+            
+        # Executa de forma linear fora do bloco condicional interno
+        if submit_pf:
