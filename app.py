@@ -6,7 +6,6 @@ import os
 # 1. Configuração e Conexão com Banco de Dados SQLite
 DB_FILE = "sistema_agendor_custom.db"
 UPLOAD_DIR = "arquivos_pedidos"
-CHAVE_ADMIN = "admin123"  # <--- ALTERE A SUA SENHA DE ALTERAÇÃO AQUI
 
 # Cria a pasta para salvar os arquivos anexados, se não existir
 if not os.path.exists(UPLOAD_DIR):
@@ -35,8 +34,15 @@ def criar_banco():
         )
     ''')
     
+    # Adiciona a coluna de arquivos se ela não existir
     try:
         c.execute("ALTER TABLE pedidos ADD COLUMN arquivo_caminho TEXT DEFAULT ''")
+    except sqlite3.OperationalError:
+        pass
+
+    # ATUALIZAÇÃO: Adiciona a coluna de autor se ela não existir de forma segura
+    try:
+        c.execute("ALTER TABLE pedidos ADD COLUMN autor TEXT DEFAULT 'Não informado'")
     except sqlite3.OperationalError:
         pass
         
@@ -61,10 +67,11 @@ def salvar_cliente(doc, tipo, nome, rg=None, dt_nasc=None, orgao=None, dt_fund=N
     conn.commit()
     conn.close()
 
-def criar_novo_pedido(doc):
+# ATUALIZAÇÃO: Agora recebe também quem está criando o pedido
+def criar_novo_pedido(doc, autor):
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
-    c.execute("INSERT INTO pedidos (documento_cliente, etapa) VALUES (?, 'Pedido Criado')", (doc,))
+    c.execute("INSERT INTO pedidos (documento_cliente, etapa, autor) VALUES (?, 'Pedido Criado', ?)", (doc, autor))
     conn.commit()
     conn.close()
 
@@ -88,7 +95,7 @@ def excluir_pedido(id_ped):
 def carregar_fluxo():
     conn = sqlite3.connect(DB_FILE)
     df = pd.read_sql_query('''
-        SELECT p.id, p.documento_cliente, p.etapa, p.observacoes, p.arquivo_caminho, c.nome, c.tipo
+        SELECT p.id, p.documento_cliente, p.etapa, p.observacoes, p.arquivo_caminho, p.autor, c.nome, c.tipo
         FROM pedidos p
         JOIN clientes c ON p.documento_cliente = c.documento
     ''', conn)
@@ -209,10 +216,16 @@ with criar_ped:
         cliente_encontrado = buscar_cliente(doc_busca)
         if cliente_encontrado:
             st.info(f"Cliente identificado: {cliente_encontrado}")
+            # ATUALIZAÇÃO: Campo obrigatório para salvar quem é o dono do pedido
+            autor_input = st.text_input("Seu Nome (Dono do Pedido):", key="novo_autor_pedido")
             if st.button("Confirmar e Criar Pedido", type="primary"):
-                criar_novo_pedido(doc_busca)
-                st.success("Pedido enviado para 'Pedido Criado'!")
-                st.rerun()
+                if autor_input.strip() != "":
+                    # Transforma o nome digitado em letras minúsculas tirando espaços para evitar erros de digitação
+                    criar_novo_pedido(doc_busca, autor_input.strip().lower())
+                    st.success("Pedido enviado para 'Pedido Criado'!")
+                    st.rerun()
+                else:
+                    st.error("Por favor, preencha o seu nome para sabermos quem é o autor do pedido.")
         else:
             st.error("Cliente não localizado. Realize o cadastro primeiro.")
 
@@ -250,14 +263,14 @@ for idx_etapa, etapa in enumerate(etapas):
             with st.popover("⚙️ Detalhes / Opções", use_container_width=True):
                 st.write(f"**Pedido:** P-{row['id']}")
                 st.write(f"**Cliente:** {row['nome']} ({row['documento_cliente']})")
+                # Mostra de forma clara na tela quem criou esse bloco
+                st.write(f"👤 **Autor do Pedido:** {row['autor'].title()}")
                 st.info(row['observacoes'] if row['observacoes'] else "Sem informações adicionadas.")
                 
-                # ATUALIZAÇÃO: Exibe o arquivo e adiciona um botão para QUALQUER pessoa baixar
                 if row['arquivo_caminho'] and os.path.exists(row['arquivo_caminho']):
                     nome_arquivo = os.path.basename(row['arquivo_caminho'])
                     st.markdown(f"📎 **Arquivo Disponível:** `{nome_arquivo}`")
                     
-                    # Permite baixar o arquivo diretamente pela aplicação
                     with open(row['arquivo_caminho'], "rb") as file_data:
                         st.download_button(
                             label="📥 Baixar / Abrir Arquivo Anexo",
@@ -266,17 +279,3 @@ for idx_etapa, etapa in enumerate(etapas):
                             key=f"dl_{row['id']}",
                             use_container_width=True
                         )
-                elif row['arquivo_caminho']:
-                    st.warning("⚠️ Arquivo registrado, mas não localizado no servidor.")
-                
-                st.markdown("---")
-                
-                # ATUALIZAÇÃO DE SEGURANÇA: Campo de chave para liberar a edição
-                senha_input = st.text_input("🔑 Chave para alterar/excluir (Deixe em branco apenas para ler):", type="password", key=f"auth_{row['id']}")
-                
-                # Define se os campos vão ficar bloqueados (Se a senha estiver errada, bloqueia)
-                bloquear_edicao = True
-                if senha_input == CHAVE_ADMIN:
-                    bloquear_edicao = False
-                    st.success("🔓 Modo de edição liberado!")
-                elif senha_input != "":
