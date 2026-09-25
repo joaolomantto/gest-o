@@ -75,9 +75,6 @@ def carregar_fluxo():
 
 criar_banco()
 
-# Lista global com as 8 etapas para evitar erros de repetição
-ETAPAS_GLOBAL = ["Pedido Criado", "Confirmar Pix", "Faturar Notas", "Faturar Entregar e Receber", "Cliente vem Buscar", "Entregas via Tecar", "Transportadora", "Pedido Finalizado"]
-
 # Inicialização de controle de janelas na memória do navegador
 if "pedido_selecionado" not in st.session_state:
     st.session_state.pedido_selecionado = None
@@ -87,44 +84,32 @@ if "aba_aberta" not in st.session_state:
 # 2. Interface Estilizada Dinâmica
 st.set_page_config(layout="wide", page_title="Gestão de Fluxo", page_icon="📋")
 
-# Injeção de CSS para Forçar Fundo Branco, Textos Pretos e Alinhamento Correto
+# Estilização CSS limpa (sem sobreposição de cliques)
 st.markdown("""
     <style>
-    /* Força o fundo geral para BRANCO puro e texto para PRETO */
-    .stApp, [data-testid="stAppViewContainer"] {
-        background-color: #ffffff !important;
-        color: #000000 !important;
-    }
-    
-    /* Garante visibilidade preta para cabeçalhos e parágrafos */
-    h1, h2, h3, h4, h5, h6, p, span, label {
-        color: #000000 !important;
-    }
-    
-    /* Configuração e linha divisória das colunas (estilo Agendor) */
+    /* Configuração e linha divisória das colunas de cima até embaixo */
     div[data-testid="stHorizontalBlock"] {
         align-items: stretch !important;
-        background-color: #ffffff !important;
     }
     
     div[data-testid="column"] {
-        padding-right: 8px !important;
-        padding-left: 8px !important;
-        border-right: 1px solid #d1d5db !important; /* Traço cinza nítido */
+        padding-right: 10px !important;
+        padding-left: 10px !important;
+        border-right: 1px solid #d1d5db !important;
     }
     
     div[data-testid="column"]:last-child {
         border-right: none !important;
     }
     
-    /* Alinhamento perfeito das caixas de etapas superiores */
+    /* Alinhamento fixo das caixas de etapas superiores */
     .topo-coluna {
         background-color: #ffffff;
-        border: 1px solid #a1a1aa;
+        border: 1px solid #e2e8f0;
         padding: 8px 4px;
         border-radius: 4px;
         text-align: center;
-        margin-bottom: 15px;
+        margin-bottom: 20px;
         height: 55px;
         display: flex;
         align-items: center;
@@ -135,36 +120,30 @@ st.markdown("""
     .texto-topo {
         font-size: 10px;
         font-weight: bold;
-        color: #000000 !important;
+        color: #1a202c;
         line-height: 1.2;
     }
     
-    /* Caixinha Quadrada do Pedido - Fundo Branco, Bordas Cinzas e Texto PRETO */
+    /* Transformando o botão do Streamlit na Caixinha Quadrada com Zoom Delay de 0.8s */
     div.element-container button[data-testid="stBaseButton-secondary"] {
         background-color: #ffffff !important;
-        border: 1px solid #babcbf !important;
-        border-top: 4px solid #FFD700 !important; /* Friso amarelo */
+        border: 1px solid #e2e8f0 !important;
+        border-top: 4px solid #FFD700 !important;
         border-radius: 4px !important;
         padding: 12px !important;
         width: 100% !important;
         height: auto !important;
         min-height: 80px !important;
         text-align: left !important;
-        box-shadow: 0px 1px 3px rgba(0, 0, 0, 0.08) !important;
+        box-shadow: 0px 1px 3px rgba(0, 0, 0, 0.05) !important;
         display: block !important;
         transition: transform 0.3s ease, box-shadow 0.3s ease !important;
-        transition-delay: 0.8s !important; /* Delay exato de zoom */
-    }
-    
-    /* Força as letras dentro da caixa a ficarem pretas e visíveis */
-    div.element-container button[data-testid="stBaseButton-secondary"] p {
-        color: #000000 !important;
-        font-weight: bold !important;
+        transition-delay: 0.8s !important; /* Delay exato de 0.8s solicitado */
     }
     
     div.element-container button[data-testid="stBaseButton-secondary"]:hover {
         transform: scale(1.06) !important;
-        box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.15) !important;
+        box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.12) !important;
         background-color: #ffffff !important;
     }
     
@@ -189,7 +168,7 @@ col_titulo, col_btn1, col_btn2 = st.columns([6, 2, 2])
 with col_titulo:
     st.title("📋 Painel de Controle")
 
-# Botões Amarelos superiores
+# Botões Amarelos com controle para resetar e voltar para tela inicial ao clicar
 with col_btn1:
     if st.button("👤 CRIAR CADASTRO", type="primary"):
         st.session_state.aba_aberta = "cadastro"
@@ -216,7 +195,7 @@ if st.session_state.aba_aberta == "cadastro":
                 if st.form_submit_button("Salvar e Fechar"):
                     if nome and cpf:
                         salvar_cliente(cpf, "PF", nome, rg, dt_nasc, orgao)
-                        st.session_state.aba_aberta = None
+                        st.session_state.aba_aberta = None  # Volta para tela inicial
                         st.rerun()
             else:
                 nome_emp = st.text_input("Nome da Empresa:")
@@ -225,7 +204,7 @@ if st.session_state.aba_aberta == "cadastro":
                 if st.form_submit_button("Salvar e Fechar"):
                     if nome_emp and cnpj:
                         salvar_cliente(cnpj, "PJ", nome_emp, dt_fund=dt_fund)
-                        st.session_state.aba_aberta = None
+                        st.session_state.aba_aberta = None  # Volta para tela inicial
                         st.rerun()
         if st.button("❌ Cancelar e Sair", key="btn_cancelar_cad"):
             st.session_state.aba_aberta = None
@@ -242,7 +221,7 @@ if st.session_state.aba_aberta == "pedido":
                 st.success(f"Cliente Encontrado: {cliente_encontrado[0]} ({cliente_encontrado[1]})")
                 if st.button("Confirmar Pedido e Fechar", type="primary", key="btn_conf_ped"):
                     criar_novo_pedido(doc_busca)
-                    st.session_state.aba_aberta = None
+                    st.session_state.aba_aberta = None  # Volta para tela inicial
                     st.rerun()
             else:
                 st.error("Cliente não localizado. Realize o cadastro primeiro.")
@@ -262,4 +241,17 @@ if st.session_state.pedido_selecionado is not None:
         novas_obs = st.text_area("Adicionar Informações / Histórico Manual:", value=row['observacoes'], key=f"edit_obs_{row['id']}")
         
         arquivo = st.file_uploader("Anexar Arquivos / Notas:", key=f"edit_file_{row['id']}")
-
+        if arquivo:
+            st.caption(f"📎 Arquivo anexado: {arquivo.name}")
+            
+        etapas_lista = [
+            "Pedido Criado", "Confirmar Pix", "Faturar Notas", 
+            "Faturar Entregar e Receber", "Cliente vem Buscar", 
+            "Entregas via Tecar", "Transportadora", "Pedido Finalizado"
+        ]
+        nova_fase = st.selectbox("Mover Pedido para a Etapa:", etapas_lista, index=etapas_lista.index(row['etapa']), key=f"edit_fase_{row['id']}")
+        
+        col_salvar, col_cancelar = st.columns(2)
+        with col_salvar:
+            if st.button("💾 Salvar Alterações e Voltar", type="primary", key=f"btn_save_edit_{row['id']}"):
+                atualizar_pedido(row['id'], nova_fase, novas_obs)
