@@ -51,6 +51,7 @@ def salvar_cliente(doc, tipo, nome, rg=None, dt_nasc=None, orgao=None, dt_fund=N
 def criar_novo_pedido(doc):
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
+    # Grava o pedido rigidamente com o texto idêntico ao título da primeira coluna
     c.execute("INSERT INTO pedidos (documento_cliente, etapa) VALUES (?, 'Pedido Criado')", (doc.strip(),))
     conn.commit()
     conn.close()
@@ -150,10 +151,14 @@ st.markdown("""
         transition-delay: 0.8s !important;
     }
     
+    /* Força o nome do cliente a quebrar linhas dentro do card */
     div.element-container button[data-testid="stBaseButton-secondary"] p {
         color: #1a202c !important;
         font-weight: bold !important;
         white-space: pre-wrap !important;
+        overflow: visible !important;
+        text-overflow: unset !important;
+        word-break: break-word !important;
     }
     
     div.element-container button[data-testid="stBaseButton-secondary"]:hover {
@@ -164,8 +169,8 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Layout do Cabeçalho - CORREÇÃO: Definido 3 colunas fixas para evitar o TypeError
-col_titulo, col_btn1, col_btn2 = st.columns(3)
+# Layout do Cabeçalho - Ajuste proporcional automático
+col_titulo, col_btn1, col_btn2 = st.columns([6, 2, 2])
 
 with col_titulo:
     st.title("📋 Painel de Controle")
@@ -213,13 +218,13 @@ with criar_ped:
             if st.button("Confirmar e Criar Pedido", type="primary", key="btn_confirmar_pedido_final"):
                 criar_novo_pedido(doc_busca)
                 st.session_state.pedido_selecionado = None
-                st.rerun()
+                st.rerun()  # Atualiza a tela na hora para o card aparecer
         else:
             st.warning("Cliente não localizado. Criar mesmo assim?")
             if st.button("Confirmar e Criar Pedido (Sem Cadastro)", type="primary", key="btn_criar_ped_sem_cadastro"):
                 criar_novo_pedido(doc_busca)
                 st.session_state.pedido_selecionado = None
-                st.rerun()
+                st.rerun()  # Atualiza a tela na hora para o card aparecer
 
 # ---- JANELA DINÂMICA DE DETALHES ----
 if st.session_state.pedido_selecionado is not None:
@@ -260,10 +265,3 @@ etapas = [
 ]
 
 colunas_quadro = st.columns(len(etapas))
-df_pedidos = carregar_fluxo()
-
-for idx_etapa, etapa_nome in enumerate(etapas):
-    with colunas_quadro[idx_etapa]:
-        texto_html_topo = f"<div class='topo-coluna'><span class='texto-topo'>{etapa_nome.upper()}</span></div>"
-        st.markdown(texto_html_topo, unsafe_allow_html=True)
-        
