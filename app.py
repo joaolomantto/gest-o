@@ -163,7 +163,7 @@ with st.sidebar:
                 dados_user = verificar_login(user_login, senha_login)
                 if dados_user:
                     st.session_state.usuario = user_login.strip().lower()
-                    st.session_state.usuario_nome = dados_user[0] # Pega a string do nome retornado pela tupla do banco
+                    st.session_state.usuario_nome = dados_user[0]
                     st.success(f"Bem-vindo, {st.session_state.usuario_nome}!")
                     st.rerun()
                 else:
@@ -254,7 +254,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# CORREÇÃO DA DIVISÃO DE COLUNAS: Passando a proporção correta para a largura do cabeçalho
+# Definição do Layout das colunas do cabeçalho de forma segura
 col_titulo, col_btn1, col_btn2 = st.columns([6, 2, 2])
 
 with col_titulo:
@@ -271,12 +271,12 @@ with criar_cad:
     aba_pf, aba_pj = st.tabs(["PESSOA FÍSICA", "PESSOA JURÍDICA"])
     
     with aba_pf:
-        with st.form("form_cliente_pf", clear_on_submit=True):
-            pf_nome = st.text_input("Nome:")
-            pf_cpf = st.text_input("CPF:")
-            pf_rg = st.text_input("RG:")
-            pf_dt_nasc = st.text_input("Data de Nascimento (DD/MM/AAAA):")
-            pf_orgao = st.text_input("Órgão Emissor:")
-            
-            if st.form_submit_button("Salvar Cliente Física"):
-                if pf_nome and pf_cpf:
+        pf_nome = st.text_input("Nome:", key="pf_nome_in")
+        pf_cpf = st.text_input("CPF:", key="pf_cpf_in")
+        pf_rg = st.text_input("RG:", key="pf_rg_in")
+        pf_dt_nasc = st.text_input("Data de Nascimento (DD/MM/AAAA):", key="pf_dt_in")
+        pf_orgao = st.text_input("Órgão Emissor:", key="pf_orgao_in")
+        
+        if st.button("Salvar Cliente Física", key="btn_salvar_pf"):
+            if pf_nome.strip() and pf_cpf.strip():
+                salvar_cliente(pf_cpf.strip(), "PF", pf_nome.strip(), pf_rg.strip(), pf_dt_nasc.strip(), pf_orgao.strip())
