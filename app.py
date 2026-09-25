@@ -64,7 +64,6 @@ def atualizar_pedido(id_ped, nova_etapa, novas_obs):
 
 def carregar_fluxo():
     conn = sqlite3.connect(DB_FILE)
-    # LEFT JOIN garante que o card apareça mesmo se houver divergência no cadastro
     df = pd.read_sql_query('''
         SELECT p.id, p.documento_cliente, p.etapa, p.observacoes, 
                IFNULL(c.nome, p.documento_cliente) as nome, 
@@ -253,7 +252,7 @@ if st.session_state.pedido_selecionado is not None:
 
 st.markdown("---")
 
-# 3. GERAÇÃO COMPLETA DAS 8 COLUNAS (Restaurada com Sucesso)
+# 3. GERAÇÃO COMPLETA DAS 8 COLUNAS (Corrigida sem strings cortadas)
 etapas = [
     "Pedido Criado", "Confirmar Pix", "Faturar Notas", 
     "Faturar Entregar e Receber", "Cliente vem Buscar", 
@@ -263,9 +262,7 @@ etapas = [
 colunas_quadro = st.columns(len(etapas))
 df_pedidos = carregar_fluxo()
 
-for idx_etapa, etapa in enumerate(etapas):
+for idx_etapa, etapa_nome in enumerate(etapas):
     with colunas_quadro[idx_etapa]:
-        st.markdown(f"""
-            <div class='topo-coluna'>
-                <span class='texto-topo'>{etapa.upper()}</span>
-            </div>
+        # Caixa de título montada em linha única protegida
+        texto_html_topo = f"<div class='topo-coluna'><span class='texto-topo'>{etapa_nome.upper()}</span></div>"
