@@ -51,11 +51,11 @@ def criar_banco():
         )
     ''')
     
-    # CORREÇÃO DO ERRO: Adiciona a coluna senha_hash se a tabela já existia sem ela
+    # Adiciona a coluna senha_hash se a tabela já existia sem ela de forma segura
     try:
         c.execute("ALTER TABLE usuarios ADD COLUMN senha_hash TEXT NOT NULL DEFAULT ''")
     except sqlite3.OperationalError:
-        pass # A coluna já existe, ignora o erro
+        pass
         
     conn.commit()
     conn.close()
@@ -262,7 +262,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-col_titulo, col_btn1, col_btn2 = st.columns()
+col_titulo, col_btn1, col_btn2 = st.columns([6, 2, 2])
 
 with col_titulo:
     st.title("📋 Painel de Controle")
@@ -283,4 +283,5 @@ with criar_cad:
             rg = st.text_input("RG:")
             dt_nasc = st.text_input("Data de Nascimento (DD/MM/AAAA):")
             orgao = st.text_input("Órgão Emissor:")
+            
             if st.form_submit_button("Salvar Cliente"):
