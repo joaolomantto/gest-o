@@ -6,6 +6,7 @@ import os
 # 1. Configuração e Conexão com Banco de Dados SQLite
 DB_FILE = "sistema_agendor_custom.db"
 UPLOAD_DIR = "arquivos_pedidos"
+CHAVE_ADMIN = "admin123"  # <--- ALTERE A SUA SENHA DE ALTERAÇÃO AQUI
 
 # Cria a pasta para salvar os arquivos anexados, se não existir
 if not os.path.exists(UPLOAD_DIR):
@@ -165,7 +166,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-col_titulo, col_btn1, col_btn2 = st.columns([6, 2, 2])
+col_titulo, col_btn1, col_btn2 = st.columns()
 
 with col_titulo:
     st.title("📋 Painel de Controle")
@@ -207,7 +208,7 @@ with criar_ped:
     if doc_busca:
         cliente_encontrado = buscar_cliente(doc_busca)
         if cliente_encontrado:
-            st.info(f"Cliente identificado: {cliente_encontrado[0]}")
+            st.info(f"Cliente identificado: {cliente_encontrado}")
             if st.button("Confirmar e Criar Pedido", type="primary"):
                 criar_novo_pedido(doc_busca)
                 st.success("Pedido enviado para 'Pedido Criado'!")
@@ -251,31 +252,31 @@ for idx_etapa, etapa in enumerate(etapas):
                 st.write(f"**Cliente:** {row['nome']} ({row['documento_cliente']})")
                 st.info(row['observacoes'] if row['observacoes'] else "Sem informações adicionadas.")
                 
-                if row['arquivo_caminho']:
+                # ATUALIZAÇÃO: Exibe o arquivo e adiciona um botão para QUALQUER pessoa baixar
+                if row['arquivo_caminho'] and os.path.exists(row['arquivo_caminho']):
                     nome_arquivo = os.path.basename(row['arquivo_caminho'])
-                    st.markdown(f"📎 **Arquivo Anexado:** `{nome_arquivo}`")
+                    st.markdown(f"📎 **Arquivo Disponível:** `{nome_arquivo}`")
+                    
+                    # Permite baixar o arquivo diretamente pela aplicação
+                    with open(row['arquivo_caminho'], "rb") as file_data:
+                        st.download_button(
+                            label="📥 Baixar / Abrir Arquivo Anexo",
+                            data=file_data,
+                            file_name=nome_arquivo,
+                            key=f"dl_{row['id']}",
+                            use_container_width=True
+                        )
+                elif row['arquivo_caminho']:
+                    st.warning("⚠️ Arquivo registrado, mas não localizado no servidor.")
                 
                 st.markdown("---")
                 
-                arquivo_carregado = st.file_uploader("Adicionar / Substituir Arquivos:", key=f"file_{row['id']}")
+                # ATUALIZAÇÃO DE SEGURANÇA: Campo de chave para liberar a edição
+                senha_input = st.text_input("🔑 Chave para alterar/excluir (Deixe em branco apenas para ler):", type="password", key=f"auth_{row['id']}")
                 
-                nova_fase = st.selectbox("Mover para etapa:", etapas, index=etapas.index(row['etapa']), key=f"fase_{row['id']}")
-                novas_obs = st.text_area("Observações do pedido:", value=row['observacoes'], key=f"obs_{row['id']}")
-                
-                col_salvar, col_excluir = st.columns(2)
-                
-                with col_salvar:
-                    if st.button("Salvar Mudanças", key=f"btn_salvar_{row['id']}", type="primary", use_container_width=True):
-                        caminho_salvo = None
-                        if arquivo_carregado is not None:
-                            caminho_salvo = os.path.join(UPLOAD_DIR, f"pedido_{row['id']}_{arquivo_carregado.name}")
-                            with open(caminho_salvo, "wb") as f:
-                                f.write(arquivo_carregado.getbuffer())
-                        
-                        atualizar_pedido(row['id'], nova_fase, novas_obs, caminho_salvo)
-                        st.rerun()
-                        
-                with col_excluir:
-                    if st.button("🚫 Excluir Pedido", key=f"btn_excluir_{row['id']}", type="secondary", use_container_width=True):
-                        excluir_pedido(row['id'])
-                        st.rerun()
+                # Define se os campos vão ficar bloqueados (Se a senha estiver errada, bloqueia)
+                bloquear_edicao = True
+                if senha_input == CHAVE_ADMIN:
+                    bloquear_edicao = False
+                    st.success("🔓 Modo de edição liberado!")
+                elif senha_input != "":
