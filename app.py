@@ -7,7 +7,7 @@ import base64
 # 1. Configuração e Conexão com Banco de Dados SQLite
 DB_FILE = "sistema_agendor_custom.db"
 UPLOAD_DIR = "arquivos_pedidos"
-CHAVE_MESTRE_CHEFE = "admin123"  # <--- SUA SENHA PARA AUTORIZAR NOVOS FUNCIONÁRIOS
+CHAVE_MESTRE_CHEFE = "admin123"  # <--- SUA SENHA PARA ENTRAR E AUTORIZAR AS PESSOAS
 
 if not os.path.exists(UPLOAD_DIR):
     os.makedirs(UPLOAD_DIR)
@@ -15,7 +15,6 @@ if not os.path.exists(UPLOAD_DIR):
 def criar_banco():
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
-    # Tabela de Clientes
     c.execute('''
         CREATE TABLE IF NOT EXISTS clientes (
             documento TEXT PRIMARY KEY,
@@ -27,7 +26,6 @@ def criar_banco():
             data_fundacao TEXT
         )
     ''')
-    # Tabela de Pedidos
     c.execute('''
         CREATE TABLE IF NOT EXISTS pedidos (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -36,7 +34,6 @@ def criar_banco():
             observacoes TEXT DEFAULT ''
         )
     ''')
-    # NOVO: Tabela de Usuários do Sistema para controle de acesso
     c.execute('''
         CREATE TABLE IF NOT EXISTS usuarios (
             cpf TEXT PRIMARY KEY,
@@ -48,7 +45,6 @@ def criar_banco():
         )
     ''')
     
-    # Validações de colunas antigas por segurança
     try:
         c.execute("ALTER TABLE pedidos ADD COLUMN arquivo_caminho TEXT DEFAULT ''")
     except sqlite3.OperationalError:
@@ -61,19 +57,18 @@ def criar_banco():
     conn.commit()
     conn.close()
 
-# Funções do banco para Gerenciamento de Usuários
-def cadastrar_usuario(nome, cpf, email, dt_nasc, telefone):
+def cadastrar_usuario(nome, cpf, email, dt_nasc, telephone):
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
     try:
         c.execute('''
             INSERT INTO usuarios (cpf, nome, email, data_nascimento, telefone, autorizado)
             VALUES (?, ?, ?, ?, ?, 0)
-        ''', (cpf, nome, email, dt_nasc, telefone))
+        ''', (cpf, nome, email, dt_nasc, telephone))
         conn.commit()
         sucesso = True
     except sqlite3.IntegrityError:
-        sucesso = False  # CPF já cadastrado
+        sucesso = False
     conn.close()
     return sucesso
 
@@ -98,7 +93,6 @@ def autorizar_usuario(cpf):
     conn.commit()
     conn.close()
 
-# Funções tradicionais do fluxo
 def buscar_cliente(doc):
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
@@ -156,11 +150,12 @@ criar_banco()
 # 2. Interface Estilizada e Configurações de Sessão
 st.set_page_config(layout="wide", page_title="Gestão de Fluxo", page_icon="📋")
 
-# Inicializa variáveis de controle de navegação local do navegador
 if "usuario_cpf" not in st.session_state:
     st.session_state["usuario_cpf"] = ""
 if "usuario_nome" not in st.session_state:
     st.session_state["usuario_nome"] = ""
+if "modo_chefe_emergencia" not in st.session_state:
+    st.session_state["modo_chefe_emergencia"] = False
 
 st.markdown("""
     <style>
@@ -197,67 +192,66 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ----------------------------------------------------
-# FLUXO DE ENTRADA: CADASTRO OU ESPERA DE PERMISSÃO
+# VERIFICAÇÃO DE SESSÃO DO CHEFE DE EMERGÊNCIA
 # ----------------------------------------------------
-if st.session_state["usuario_cpf"] == "":
-    st.title("📋 Bem-vindo ao Sistema de Gestão")
-    st.subheader("Primeiro acesso detectado. Por favor, identifique-se ou faça o seu cadastro.")
-    
-    aba_login, aba_cadastro = st.tabs(["Já tenho Cadastro", "Criar Novo Cadastro"])
-    
-    with aba_login:
-        with st.form("form_entrar"):
-            login_cpf = st.text_input("Digite seu CPF cadastrado:")
-            btn_entrar = st.form_submit_button("Entrar no Painel")
-            if btn_entrar:
-                if login_cpf.strip():
-                    status = checar_status_usuario(login_cpf.strip())
-                    if status:
-                        st.session_state["usuario_cpf"] = login_cpf.strip()
-                        st.session_state["usuario_nome"] = status[0]
-                        st.rerun()
+if not st.session_state["modo_chefe_emergencia"]:
+    if st.session_state["usuario_cpf"] == "":
+        st.title("📋 Bem-vindo ao Sistema de Gestão")
+        st.subheader("Primeiro acesso detectado. Por favor, identifique-se ou faça o seu cadastro.")
+        
+        aba_login, aba_cadastro = st.tabs(["Já tenho Cadastro", "Criar Novo Cadastro"])
+        
+        with aba_login:
+            with st.form("form_entrar"):
+                login_cpf = st.text_input("Digite seu CPF cadastrado:")
+                btn_entrar = st.form_submit_button("Entrar no Painel")
+                if btn_entrar:
+                    if login_cpf.strip():
+                        status = checar_status_usuario(login_cpf.strip())
+                        if status:
+                            st.session_state["usuario_cpf"] = login_cpf.strip()
+                            st.session_state["usuario_nome"] = status[0]
+                            st.rerun()
+                        else:
+                            st.error("CPF não localizado no sistema. Vá na aba ao lado e realize o cadastro.")
                     else:
-                        st.error("CPF não localizado no sistema. Vá na aba ao lado e realize o cadastro.")
-                else:
-                    st.warning("Preencha o campo de CPF.")
-                    
-    with aba_cadastro:
-        with st.form("form_registro_inicial", clear_on_submit=True):
-            reg_nome = st.text_input("Nome Completo:")
-            reg_cpf = st.text_input("CPF (Apenas números):")
-            reg_email = st.text_input("E-mail Corporativo:")
-            reg_nasc = st.text_input("Data de Nascimento (DD/MM/AAAA):")
-            reg_fone = st.text_input("Número de Telefone (com DDD):")
-            
-            if st.form_submit_button("Solicitar Acesso ao Sistema"):
-                if reg_nome and reg_cpf and reg_email and reg_nasc and reg_fone:
-                    if cadastrar_usuario(reg_nome, reg_cpf, reg_email, reg_nasc, reg_fone):
-                        st.session_state["usuario_cpf"] = reg_cpf
-                        st.session_state["usuario_nome"] = reg_nome
-                        st.success("Cadastro realizado! Aguardando aprovação.")
-                        st.rerun()
+                        st.warning("Preencha o campo de CPF.")
+                        
+        with aba_cadastro:
+            with st.form("form_registro_inicial", clear_on_submit=True):
+                reg_nome = st.text_input("Nome Completo:")
+                reg_cpf = st.text_input("CPF (Apenas números):")
+                reg_email = st.text_input("E-mail Corporativo:")
+                reg_nasc = st.text_input("Data de Nascimento (DD/MM/AAAA):")
+                reg_fone = st.text_input("Número de Telefone (com DDD):")
+                
+                if st.form_submit_button("Solicitar Acesso ao Sistema"):
+                    if reg_nome and reg_cpf and reg_email and reg_nasc and reg_fone:
+                        if cadastrar_usuario(reg_nome, reg_cpf, reg_email, reg_nasc, reg_fone):
+                            st.session_state["usuario_cpf"] = reg_cpf
+                            st.session_state["usuario_nome"] = reg_nome
+                            st.success("Cadastro realizado! Aguardando aprovação.")
+                            st.rerun()
+                        else:
+                            st.error("Este CPF já possui uma solicitação registrada.")
                     else:
-                        st.error("Este CPF já possui uma solicitação registrada.")
+                        st.error("Todos os campos do formulário são obrigatórios.")
+        
+        # Entrada secreta caso o chefe mestre caia na tela inicial sem conta
+        st.markdown("---")
+        with st.expander("🔑 Acesso Direto do Administrador (Chefe)"):
+            senha_direta = st.text_input("Digite a senha master para pular o cadastro:", type="password", key="senha_inicial")
+            if st.button("Ignorar e Entrar como Chefe"):
+                if senha_direta == CHAVE_MESTRE_CHEFE:
+                    st.session_state["modo_chefe_emergencia"] = True
+                    st.session_state["usuario_nome"] = "Administrador"
+                    st.rerun()
                 else:
-                    st.error("Todos os campos do formulário são obrigatórios.")
-    st.stop()
+                    st.error("Senha incorreta.")
+        st.stop()
 
-# Checa se o usuário atual logado já foi liberado por você no banco
-dados_usuario = checar_status_usuario(st.session_state["usuario_cpf"])
-if dados_usuario and dados_usuario[1] == 0:
-    st.title("📋 Aguardando Liberação")
-    st.warning(f"Olá, {st.session_state['usuario_nome'].title()}! Seu cadastro foi recebido com sucesso.")
-    st.info("🔒 Seus dados estão salvos. Uma solicitação de permissão foi enviada para o Chefe. Assim que ele autorizar, esta tela se transformará automaticamente nos funis de venda.")
-    
-    if st.button("🔄 Verificar se já fui autorizado"):
-        st.rerun()
-    st.stop()
-
-# ----------------------------------------------------
-# TELA PRINCIPAL (PAINEL DO KANBAN LIBERADO)
-# ----------------------------------------------------
-# Layout do Cabeçalho - Título, Controles Padrão e Painel do Chefe
-col_titulo, col_btn1, col_btn2, col_chefe = st.columns([4, 2, 2, 2])
-
-with col_titulo:
-    st.title("📋 Painel de Controle")
+    # Checa se o usuário atual logado já foi liberado por você no banco
+    dados_usuario = checar_status_usuario(st.session_state["usuario_cpf"])
+    if dados_usuario and dados_usuario[1] == 0:
+        st.title("📋 Aguardando Liberação")
+        st.warning(f"Olá, {st.session_state['usuario_nome'].title()}! Seu cadastro foi recebido com sucesso.")
