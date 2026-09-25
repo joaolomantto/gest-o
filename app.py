@@ -163,7 +163,7 @@ st.markdown("""
         box-shadow: 0px 1px 3px rgba(0, 0, 0, 0.08) !important;
         display: block !important;
         transition: transform 0.3s ease, box-shadow 0.3s ease !important;
-        transition-delay: 0.8s !important; /* Zoom só ativa após 0,8s parado */
+        transition-delay: 0.8s !important; /* Zoom só activa após 0,8s parado */
     }
     
     /* Força os textos internos da caixinha a ficarem pretos */
