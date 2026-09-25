@@ -8,6 +8,7 @@ import base64
 DB_FILE = "sistema_agendor_custom.db"
 UPLOAD_DIR = "arquivos_pedidos"
 
+# Credenciais fixas do Chefe Supremo
 USER_MASTER = "admintecar.renault"
 SENHA_MASTER = "admin123"
 
@@ -80,7 +81,7 @@ def cadastrar_usuario(usuario, senha, nome, cpf, dt_nasc, telephone):
         c.execute('''
             INSERT INTO usuarios (usuario, senha, nome, cpf, data_nascimento, telephone, autorizado)
             VALUES (?, ?, ?, ?, ?, ?, 'PENDENTE')
-        ''', (usuario.strip().lower(), senha, nome, cpf, dt_nasc, telephone))
+        ''', (usuario.strip().lower(), Append_senha:=senha, nome, cpf, dt_nasc, telephone))
         conn.commit()
         sucesso = True
     except Exception:
@@ -123,10 +124,8 @@ def listar_usuarios_pendentes():
 def julgar_usuario(usuario, decisao):
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
-    if decisao == "ACEITAR":
-        c.execute("UPDATE usuarios SET autorizado = 'APROVADO' WHERE usuario = ?", (usuario,))
-    else:
-        c.execute("UPDATE usuarios SET autorizado = 'RECUSADO' WHERE usuario = ?", (usuario,))
+    novo_status = "APROVADO" if decisao == "ACEITAR" else "RECUSADO"
+    c.execute("UPDATE usuarios SET autorizado = ? WHERE usuario = ?", (novo_status, usuario))
     conn.commit()
     conn.close()
 
@@ -184,7 +183,7 @@ def carregar_fluxo():
 
 criar_banco()
 
-# 2. Interface Estilizada e Configurações de Sessão
+# 2. Configurações de Sessão do Streamlit
 if "logado" not in st.session_state:
     st.session_state["logado"] = False
 if "session_user" not in st.session_state:
@@ -228,6 +227,9 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
+# ----------------------------------------------------
+# SISTEMA DE PORTAL DE ENTRADA (RETILÍNEO)
+# ----------------------------------------------------
 if not st.session_state["logado"]:
     st.title("📋 Portal de Acesso — Gestão de Fluxo")
     tab_login, tab_cadastro = st.tabs(["🔒 Acessar Minha Conta", "👤 Criar Nova Conta"])
@@ -257,11 +259,10 @@ if not st.session_state["logado"]:
         new_pass = st.text_input("Defina sua Senha de Acesso:", type="password", key="reg_pass")
         
         if st.button("🚀 Cadastrar e Solicitar Permissão", use_container_width=True, type="primary"):
-            if not (new_nome and new_cpf and new_nasc and new_fone and new_user and new_pass):
+            # LÓGICA LINEAR DA VALIDAÇÃO SEM CONDICIONAIS ANINHADAS CONFLITANTES
+            valido = bool(new_nome and new_cpf and new_nasc and new_fone and new_user and new_pass)
+            if not valido:
                 st.error("Preencha todos os campos do formulário para concluir.")
             elif new_user.strip().lower() == USER_MASTER:
                 st.error("Este nome de usuário é reservado ao administrador.")
             else:
-                if cadastrar_usuario(new_user, new_pass, new_nome, new_cpf, new_nasc, new_fone):
-                    st.success("🎯 Conta criada com sucesso! Vá para a aba '🔒 Acessar Minha Conta' acima e faça seu login.")
-                else:
